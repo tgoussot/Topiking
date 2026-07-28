@@ -1,5 +1,6 @@
+import "reflect-metadata";
 import express from "express";
-import { AppDataSource } from "./data-source.js";
+import { AppDataSource } from "./data-source";
 
 
 
