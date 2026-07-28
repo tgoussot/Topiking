@@ -14,8 +14,13 @@ export class ReceptionCarte {
     @IsInt()
     numero_manche!: number
 
+    @Column({ type: "int", nullable: true })
+    @IsOptional()
+    @IsInt()
+    manche_application?: number | null
+
     @Column()
-    @IsIn(["en_attente", "utilisee", "expiree"])
+    @IsIn(["en_main", "jouee", "expiree"])
     statut!: string
 
     // Côté Participant (bénéficiaire) de l'association qualifiée RECOIT : chaque ligne

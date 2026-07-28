@@ -1,10 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from "typeorm"
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique } from "typeorm"
 import { IsInt } from "class-validator"
 import { Session } from "./Session"
 import { Theme } from "./Theme"
 
 // Entité de jonction pour l'association qualifiée PORTE SUR (Session 1,n — 0,n Theme, attribut numero_manche)
 @Entity()
+@Unique(["id_session", "id_theme"])
+@Unique(["id_session", "numero_manche"])
 export class SessionTheme {
     @PrimaryGeneratedColumn()
     id!: number

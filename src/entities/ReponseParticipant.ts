@@ -1,20 +1,22 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from "typeorm"
-import { IsInt, Max, Min } from "class-validator"
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique } from "typeorm"
+import { IsInt, IsOptional, Max, Min } from "class-validator"
 import { Participant } from "./Participant"
 import { Question } from "./Question"
 
 // Entité de jonction pour l'association qualifiée REPOND (Participant 0,n — 0,n Question,
 // attributs reponse_choisie, temps_reponse_ms, points)
 @Entity()
+@Unique(["id_participant", "id_question"])
 export class ReponseParticipant {
     @PrimaryGeneratedColumn()
     id!: number
 
-    @Column()
+    @Column({ type: "int", nullable: true })
+    @IsOptional()
     @IsInt()
     @Min(1)
     @Max(4)
-    reponse_choisie!: number
+    reponse_choisie!: number | null
 
     @Column()
     @IsInt()

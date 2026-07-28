@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn } from "typeorm"
-import {IsDate, IsIn, IsInt, Length} from "class-validator"
+import {IsDate, IsIn, IsInt, IsOptional, Length} from "class-validator"
 import {Utilisateur} from "./Utilisateur"
 import { Participant } from "./Participant"
 import { SessionTheme } from "./SessionTheme"
@@ -14,16 +14,33 @@ export class Session {
     code_acces!: string
 
     @Column()
-    @IsIn(["en_attente", "en_cours", "terminee"])
+    @IsIn(["en_attente", "en_cours", "terminee", "annulee"])
     statut!: string
 
     @Column({ type: "timestamp", nullable: true })
+    @IsOptional()
     @IsDate()
-    date_debut!: Date
+    date_debut!: Date | null
 
     @Column({ type: "timestamp", nullable: true })
+    @IsOptional()
     @IsDate()
-    date_fin!: Date
+    date_fin!: Date | null
+
+    @Column({ type: "int", nullable: true })
+    @IsOptional()
+    @IsInt()
+    id_question_courante!: number | null
+
+    @Column({ type: "int", nullable: true })
+    @IsOptional()
+    @IsInt()
+    numero_manche_courante!: number | null
+
+    @Column({ type: "timestamp", nullable: true })
+    @IsOptional()
+    @IsDate()
+    date_debut_question!: Date | null
 
     // Relation ANIME : 0,n (User) — 1,1 (Session)
     // Une session a un seul animateur, un animateur peut animer plusieurs sessions

@@ -11,11 +11,8 @@ import { ReponseParticipant } from "./entities/ReponseParticipant";
 import { Carte } from "./entities/Carte";
 import { ReceptionCarte } from "./entities/ReceptionCarte";
 
-// Hash sha256 factices (contrainte @IsHash("sha256") : 64 caractères hexadécimaux)
 const hash = (n: number) => n.toString(16).padStart(2, "0").repeat(32).slice(0, 64);
 
-// tsconfig active noUncheckedIndexedAccess : tout accès indexé est T | undefined.
-// Ce helper récupère un élément inséré en signalant tout de suite un seed incohérent.
 function at<T>(rows: T[], index: number): T {
     const row = rows[index];
     if (row === undefined) throw new Error(`Ligne ${index} absente après insertion`);
@@ -71,10 +68,12 @@ async function seed() {
     ]);
     const thCulture = at(themes, 0);
     const thHistoire = at(themes, 1);
+    const thGeo = at(themes, 2);
     const thAlgo = at(themes, 3);
     const thReseaux = at(themes, 4);
     const thSecu = at(themes, 5);
-    // Géographie (index 2) reste sans question ni manche → teste CONTIENT côté 0 et PORTE SUR 0,n
+    // Géographie (index 2) reste sans question → teste CONTIENT côté 0
+    // Sécurité (index 5) n'est rattaché à aucune manche → teste PORTE SUR côté 0
 
     // ---------------------------------------------------------------- QUESTION (CONTIENT 1,n — 1,1)
     const q = (
@@ -154,14 +153,14 @@ async function seed() {
         {
             code_acces: "EF34GH", statut: "en_cours",
             date_debut: new Date("2026-03-12T14:00:00Z"),
-            date_fin: null as unknown as Date,
+            date_fin: null,
             id_animateur: uClaire.id, // Claire anime 2 sessions → teste ANIME 0,n
         },
         // Session en attente : ni date_debut ni date_fin, aucun participant
         {
             code_acces: "IJ56KL", statut: "en_attente",
-            date_debut: null as unknown as Date,
-            date_fin: null as unknown as Date,
+            date_debut: null,
+            date_fin: null,
             id_animateur: uMarc.id,
         },
         // Session d'une autre organisation (IUT)
@@ -174,7 +173,7 @@ async function seed() {
         {
             code_acces: "QR90ST", statut: "en_cours",
             date_debut: new Date("2026-03-14T16:00:00Z"),
-            date_fin: null as unknown as Date,
+            date_fin: null,
             id_animateur: uNadia.id,
         },
     ]);
@@ -186,10 +185,11 @@ async function seed() {
 
     // ---------------------------------------------------------------- SESSION_THEME (PORTE SUR, attribut numero_manche)
     await AppDataSource.getRepository(SessionTheme).save([
-        // Session terminée : 3 manches, dont la manche 3 rejoue Culture générale
+        // Session terminée : 3 manches sur 3 thèmes distincts (§2).
+        // La manche 3 utilise Géographie, un thème sans question : cas limite volontaire.
         { id_session: sTerminee.id, id_theme: thCulture.id, numero_manche: 1 },
         { id_session: sTerminee.id, id_theme: thHistoire.id, numero_manche: 2 },
-        { id_session: sTerminee.id, id_theme: thCulture.id, numero_manche: 3 },
+        { id_session: sTerminee.id, id_theme: thGeo.id, numero_manche: 3 },
         // Session en cours : 2 manches
         { id_session: sEnCours.id, id_theme: thHistoire.id, numero_manche: 1 },
         { id_session: sEnCours.id, id_theme: thCulture.id, numero_manche: 2 },
@@ -276,21 +276,24 @@ async function seed() {
     // ---------------------------------------------------------------- RECEPTION_CARTE (RECOIT, attributs + cible optionnelle)
     await AppDataSource.getRepository(ReceptionCarte).save([
         // Bonus sans cible (id_cible null)
-        { id_participant: pLea.id, id_carte: cDouble.id, numero_manche: 1, statut: "utilisee", id_cible: null },
-        { id_participant: pLea.id, id_carte: cTemps.id, numero_manche: 2, statut: "utilisee", id_cible: null },
-        { id_participant: pTom.id, id_carte: cDouble.id, numero_manche: 2, statut: "en_attente", id_cible: null },
-        { id_participant: pInes.id, id_carte: cTemps.id, numero_manche: 1, statut: "expiree", id_cible: null },
+        // Jouée dans la manche de réception : manche_application == numero_manche
+        { id_participant: pLea.id, id_carte: cDouble.id, numero_manche: 1, manche_application: 1, statut: "jouee", id_cible: null },
+        // Carte gardée une manche de plus : reçue en 2, jouée en 3 → c'est le cas que
+        // numero_manche seul ne savait pas exprimer
+        { id_participant: pLea.id, id_carte: cTemps.id, numero_manche: 2, manche_application: 3, statut: "jouee", id_cible: null },
+        { id_participant: pTom.id, id_carte: cDouble.id, numero_manche: 2, manche_application: null, statut: "en_main", id_cible: null },
+        { id_participant: pInes.id, id_carte: cTemps.id, numero_manche: 1, manche_application: null, statut: "expiree", id_cible: null },
         // Malus avec cible → teste la relation auto-référencée vers Participant
-        { id_participant: pTom.id, id_carte: cVol.id, numero_manche: 3, statut: "utilisee", id_cible: pLea.id },
-        { id_participant: pInes.id, id_carte: cBrouille.id, numero_manche: 2, statut: "utilisee", id_cible: pTom.id },
-        { id_participant: pLea.id, id_carte: cTempsRed.id, numero_manche: 3, statut: "expiree", id_cible: pInes.id },
+        { id_participant: pTom.id, id_carte: cVol.id, numero_manche: 3, manche_application: 3, statut: "jouee", id_cible: pLea.id },
+        { id_participant: pInes.id, id_carte: cBrouille.id, numero_manche: 2, manche_application: 2, statut: "jouee", id_cible: pTom.id },
+        { id_participant: pLea.id, id_carte: cTempsRed.id, numero_manche: 3, manche_application: null, statut: "expiree", id_cible: pInes.id },
         // Session en cours
-        { id_participant: pNora.id, id_carte: cDouble.id, numero_manche: 1, statut: "en_attente", id_cible: null },
-        { id_participant: pKarim.id, id_carte: cVol.id, numero_manche: 1, statut: "en_attente", id_cible: pNora.id },
+        { id_participant: pNora.id, id_carte: cDouble.id, numero_manche: 1, manche_application: null, statut: "en_main", id_cible: null },
+        { id_participant: pKarim.id, id_carte: cVol.id, numero_manche: 1, manche_application: null, statut: "en_main", id_cible: pNora.id },
         // Sessions IUT
-        { id_participant: pAlex.id, id_carte: cTemps.id, numero_manche: 1, statut: "utilisee", id_cible: null },
-        { id_participant: pSam.id, id_carte: cVol.id, numero_manche: 2, statut: "utilisee", id_cible: pAlex.id },
-        { id_participant: pAlex.id, id_carte: cBrouille.id, numero_manche: 2, statut: "en_attente", id_cible: pSam.id },
+        { id_participant: pAlex.id, id_carte: cTemps.id, numero_manche: 1, manche_application: 1, statut: "jouee", id_cible: null },
+        { id_participant: pSam.id, id_carte: cVol.id, numero_manche: 2, manche_application: 2, statut: "jouee", id_cible: pAlex.id },
+        { id_participant: pAlex.id, id_carte: cBrouille.id, numero_manche: 2, manche_application: null, statut: "en_main", id_cible: pSam.id },
     ]);
 
     // ---------------------------------------------------------------- Récapitulatif
