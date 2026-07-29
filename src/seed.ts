@@ -6,6 +6,7 @@ import { Theme } from "./entities/Theme";
 import { Question } from "./entities/Question";
 import { Session } from "./entities/Session";
 import { SessionTheme } from "./entities/SessionTheme";
+import { SessionQuestion } from "./entities/SessionQuestion";
 import { Participant } from "./entities/Participant";
 import { ReponseParticipant } from "./entities/ReponseParticipant";
 import { Carte } from "./entities/Carte";
@@ -26,7 +27,7 @@ async function seed() {
     await AppDataSource.query(`
         TRUNCATE TABLE
             "reception_carte", "reponse_participant", "participant",
-            "session_theme", "session", "question", "theme",
+            "session_question", "session_theme", "session", "question", "theme",
             "utilisateur", "organisation", "carte"
         RESTART IDENTITY CASCADE
     `);
@@ -103,6 +104,7 @@ async function seed() {
         // Histoire
         q(thHistoire, "En quelle année a lieu la prise de la Bastille ?", ["1787", "1789", "1791", "1799"], 2, 15, "Le 14 juillet 1789."),
         q(thHistoire, "Qui était président en mai 1968 ?", ["Pompidou", "De Gaulle", "Giscard", "Mitterrand"], 2, 25, null),
+        q(thHistoire, "En quelle année la Première Guerre mondiale prend-elle fin ?", ["1916", "1917", "1918", "1919"], 3, 20, "L'armistice est signé le 11 novembre 1918."),
         // Algorithmique
         q(thAlgo, "Complexité moyenne du tri rapide ?", ["O(n)", "O(n log n)", "O(n²)", "O(log n)"], 2, 30, "Le pire cas reste en O(n²)."),
         q(thAlgo, "Quelle structure suit le principe LIFO ?", ["File", "Pile", "Arbre", "Graphe"], 2, 20, "Last In, First Out."),
@@ -110,68 +112,104 @@ async function seed() {
         // Réseaux
         q(thReseaux, "Combien de couches dans le modèle OSI ?", ["4", "5", "7", "9"], 3, 15, "Physique à Application."),
         q(thReseaux, "Quel port utilise HTTPS par défaut ?", ["21", "80", "443", "8080"], 3, 15, null),
+        q(thReseaux, "Que traduit le protocole DNS ?", ["Une adresse IP en nom de domaine", "Un nom de domaine en adresse IP", "Un port en service", "Une adresse MAC en IP"], 2, 20, "Le DNS résout les noms de domaine en adresses IP."),
         // Sécurité (thème d'une autre organisation, jamais joué)
         q(thSecu, "Que signifie EPI ?", ["Équipement de Protection Individuelle", "Étude Préalable Interne", "Examen Périodique Imposé", "Entretien Programmé Industriel"], 1, 20, null),
+
+        // --- Questions de réserve ---
+        // Ajoutées à la fin pour ne décaler aucun index at() ci-dessous.
+        // Elles donnent de quoi piocher : une manche tire 3 questions parmi celles
+        // du thème, donc sans réserve deux parties poseraient toujours les mêmes.
+        q(thCulture, "Quel est le plus long fleuve du monde ?", ["Le Nil", "L'Amazone", "Le Yangtsé", "Le Mississippi"], 2, 20, "L'Amazone est aujourd'hui reconnu comme le plus long."),
+        q(thCulture, "Combien de continents compte la Terre ?", ["4", "5", "6", "7"], 4, 15, null),
+        q(thCulture, "Qui a écrit Les Misérables ?", ["Zola", "Balzac", "Hugo", "Flaubert"], 3, 20, "Victor Hugo, publié en 1862."),
+        q(thCulture, "Quelle planète est la plus proche du Soleil ?", ["Vénus", "Mercure", "Mars", "Terre"], 2, 15, null),
+        q(thCulture, "En quelle année l'homme a-t-il marché sur la Lune ?", ["1965", "1969", "1972", "1975"], 2, 20, "Apollo 11, le 20 juillet 1969."),
+
+        q(thHistoire, "Qui était le roi de France en 1789 ?", ["Louis XIV", "Louis XV", "Louis XVI", "Charles X"], 3, 20, "Louis XVI règne de 1774 à 1792."),
+        q(thHistoire, "Quand la Ve République est-elle instaurée ?", ["1945", "1958", "1962", "1968"], 2, 20, "En 1958, avec le retour de De Gaulle."),
+        q(thHistoire, "Quel traité met fin à la Première Guerre mondiale ?", ["Traité de Vienne", "Traité de Versailles", "Traité de Rome", "Traité de Paris"], 2, 25, null),
+        q(thHistoire, "En quelle année la Seconde Guerre mondiale commence-t-elle ?", ["1937", "1939", "1940", "1941"], 2, 15, "Le 1er septembre 1939."),
+        q(thHistoire, "Qui a proclamé l'abolition de l'esclavage en France en 1848 ?", ["Napoléon III", "Victor Schoelcher", "Jules Ferry", "Léon Gambetta"], 2, 25, null),
+
+        q(thAlgo, "Quelle structure suit le principe FIFO ?", ["Pile", "File", "Arbre", "Tas"], 2, 20, "First In, First Out."),
+        q(thAlgo, "Complexité du tri par insertion dans le pire cas ?", ["O(n)", "O(n log n)", "O(n²)", "O(2^n)"], 3, 25, null),
+        q(thAlgo, "Quel parcours d'arbre visite la racine en premier ?", ["Préfixe", "Infixe", "Suffixe", "Par niveau"], 1, 20, "Le parcours préfixe traite la racine avant les sous-arbres."),
+        q(thAlgo, "Que garantit un algorithme glouton ?", ["L'optimum global", "Un choix localement optimal", "Une complexité linéaire", "Une solution unique"], 2, 30, null),
+        q(thAlgo, "Combien de comparaisons pour une dichotomie sur 1024 éléments ?", ["10", "32", "512", "1024"], 1, 25, "log2(1024) = 10."),
+
+        q(thReseaux, "Que signifie l'acronyme IP ?", ["Internet Protocol", "Internal Process", "Information Packet", "Interface Port"], 1, 15, null),
+        q(thReseaux, "Quel protocole garantit la livraison des paquets ?", ["UDP", "TCP", "ICMP", "ARP"], 2, 20, "TCP est orienté connexion, contrairement à UDP."),
+        q(thReseaux, "Quelle couche OSI gère le routage ?", ["Liaison", "Réseau", "Transport", "Session"], 2, 20, "La couche 3, réseau."),
+        q(thReseaux, "Combien de bits dans une adresse IPv4 ?", ["16", "32", "64", "128"], 2, 15, null),
+        q(thReseaux, "À quoi sert le protocole ARP ?", ["Résoudre une IP en adresse MAC", "Chiffrer les échanges", "Attribuer une IP", "Router les paquets"], 1, 25, null),
     ]);
     const qCult1 = at(questions, 0);
     const qCult2 = at(questions, 1);
     const qCult3 = at(questions, 2);
     const qHist1 = at(questions, 3);
     const qHist2 = at(questions, 4);
-    const qAlgo1 = at(questions, 5);
-    const qAlgo2 = at(questions, 6);
-    const qAlgo3 = at(questions, 7);
-    const qRes1 = at(questions, 8);
-    const qRes2 = at(questions, 9);
+    const qAlgo1 = at(questions, 6);
+    const qAlgo2 = at(questions, 7);
+    const qAlgo3 = at(questions, 8);
+    const qRes1 = at(questions, 9);
+    const qRes2 = at(questions, 10);
 
     // ---------------------------------------------------------------- CARTE
+    // Les 7 cartes des règles (§7). "effet" est le code lu par EffetsService,
+    // "intensite" la valeur du réglage (secondes, points, index...).
+    // Principes d'équilibrage : aucun malus ne retire de points ni ne fait perdre
+    // un tour, aucun bonus ne vaut plus d'un tiers d'une bonne réponse.
     const cartes = await AppDataSource.getRepository(Carte).save([
-        { libelle: "Double points", type: "bonus", effet: "multiplicateur_points", intensite: 2 },
-        { libelle: "Temps supplémentaire", type: "bonus", effet: "ajout_temps_s", intensite: 10 },
-        { libelle: "Second essai", type: "bonus", effet: "reponse_supplementaire", intensite: 1 },
-        { libelle: "Vol de points", type: "malus", effet: "retrait_points_cible", intensite: 50 },
-        { libelle: "Écran brouillé", type: "malus", effet: "masquage_propositions", intensite: 1 },
-        { libelle: "Temps réduit", type: "malus", effet: "retrait_temps_s", intensite: 5 },
+        // Deck malus : pour le vainqueur de la manche, à lancer sur un adversaire
+        { libelle: "Brouillage", type: "malus", effet: "melange_propositions", intensite: 2 },
+        { libelle: "Contre-la-montre", type: "malus", effet: "retrait_temps_s", intensite: 5 },
+        { libelle: "Flou", type: "malus", effet: "floutage_proposition_s", intensite: 3 },
+        // Deck bonus : pour le dernier, à s'appliquer à soi-même
+        { libelle: "Rallonge", type: "bonus", effet: "ajout_temps_s", intensite: 5 },
+        { libelle: "Indice", type: "bonus", effet: "elimination_proposition", intensite: 1 },
+        { libelle: "Élan", type: "bonus", effet: "ajout_points", intensite: 25 },
+        { libelle: "Anticipation", type: "bonus", effet: "revelation_anticipee_s", intensite: 3 },
     ]);
-    const cDouble = at(cartes, 0);
-    const cTemps = at(cartes, 1);
-    const cVol = at(cartes, 3);
-    const cBrouille = at(cartes, 4);
-    const cTempsRed = at(cartes, 5);
-    // "Second essai" (index 2) n'est jamais distribuée → teste RECOIT 0,n côté 0
+    const cBrouillage = at(cartes, 0);
+    const cContreMontre = at(cartes, 1);
+    const cRallonge = at(cartes, 3);
+    const cIndice = at(cartes, 4);
+    const cElan = at(cartes, 5);
+    // "Flou" (index 2) et "Anticipation" (index 6) ne sont jamais distribuées → testent RECOIT 0,n côté 0
 
     // ---------------------------------------------------------------- SESSION (ANIME 0,n — 1,1)
     const sessions = await AppDataSource.getRepository(Session).save([
         // Session terminée et complète : c'est elle qui porte le jeu de données riche
         {
-            code_acces: "AB12CD", statut: "terminee",
+            code_acces: 481203, statut: "terminee",
             date_debut: new Date("2026-03-10T09:00:00Z"),
             date_fin: new Date("2026-03-10T09:45:00Z"),
             id_animateur: uClaire.id,
         },
         // Session en cours : réponses partielles
         {
-            code_acces: "EF34GH", statut: "en_cours",
+            code_acces: 573914, statut: "en_cours",
             date_debut: new Date("2026-03-12T14:00:00Z"),
             date_fin: null,
             id_animateur: uClaire.id, // Claire anime 2 sessions → teste ANIME 0,n
         },
         // Session en attente : ni date_debut ni date_fin, aucun participant
         {
-            code_acces: "IJ56KL", statut: "en_attente",
+            code_acces: 620857, statut: "en_attente",
             date_debut: null,
             date_fin: null,
             id_animateur: uMarc.id,
         },
         // Session d'une autre organisation (IUT)
         {
-            code_acces: "MN78OP", statut: "terminee",
+            code_acces: 738261, statut: "terminee",
             date_debut: new Date("2026-03-05T10:00:00Z"),
             date_fin: new Date("2026-03-05T10:30:00Z"),
             id_animateur: uHugo.id,
         },
         {
-            code_acces: "QR90ST", statut: "en_cours",
+            code_acces: 194736, statut: "en_cours",
             date_debut: new Date("2026-03-14T16:00:00Z"),
             date_fin: null,
             id_animateur: uNadia.id,
@@ -199,6 +237,31 @@ async function seed() {
         { id_session: sIutTerminee.id, id_theme: thAlgo.id, numero_manche: 1 },
         { id_session: sIutTerminee.id, id_theme: thReseaux.id, numero_manche: 2 },
         { id_session: sIutEnCours.id, id_theme: thAlgo.id, numero_manche: 1 },
+    ]);
+
+    // ---------------------------------------------------------------- SESSION_QUESTION (tirage figé des questions)
+    // En production, ces lignes sont écrites par SessionService.creer() qui mélange
+    // les questions du thème. Ici on les fixe pour rester cohérent avec les
+    // ReponseParticipant ci-dessous, qui portent sur des questions précises.
+    await AppDataSource.getRepository(SessionQuestion).save([
+        // Session terminée, manche 1 (Culture générale)
+        { id_session: sTerminee.id, id_question: qCult1.id, numero_manche: 1, ordre: 1 },
+        { id_session: sTerminee.id, id_question: qCult2.id, numero_manche: 1, ordre: 2 },
+        { id_session: sTerminee.id, id_question: qCult3.id, numero_manche: 1, ordre: 3 },
+        // Session terminée, manche 2 (Histoire) : seulement 2 questions posées
+        { id_session: sTerminee.id, id_question: qHist1.id, numero_manche: 2, ordre: 1 },
+        { id_session: sTerminee.id, id_question: qHist2.id, numero_manche: 2, ordre: 2 },
+        // Manche 3 (Géographie) sans question : thème vide, cas limite volontaire
+        // Session en cours : manche 1 Histoire, manche 2 Culture
+        { id_session: sEnCours.id, id_question: qHist1.id, numero_manche: 1, ordre: 1 },
+        { id_session: sEnCours.id, id_question: qCult1.id, numero_manche: 2, ordre: 1 },
+        // Sessions IUT
+        { id_session: sIutTerminee.id, id_question: qAlgo1.id, numero_manche: 1, ordre: 1 },
+        { id_session: sIutTerminee.id, id_question: qAlgo2.id, numero_manche: 1, ordre: 2 },
+        { id_session: sIutTerminee.id, id_question: qAlgo3.id, numero_manche: 1, ordre: 3 },
+        { id_session: sIutTerminee.id, id_question: qRes1.id, numero_manche: 2, ordre: 1 },
+        { id_session: sIutTerminee.id, id_question: qRes2.id, numero_manche: 2, ordre: 2 },
+        { id_session: sIutEnCours.id, id_question: qAlgo1.id, numero_manche: 1, ordre: 1 },
     ]);
 
     // ---------------------------------------------------------------- PARTICIPANT (REJOINT 1,n — 1,1)
@@ -277,29 +340,30 @@ async function seed() {
     await AppDataSource.getRepository(ReceptionCarte).save([
         // Bonus sans cible (id_cible null)
         // Jouée dans la manche de réception : manche_application == numero_manche
-        { id_participant: pLea.id, id_carte: cDouble.id, numero_manche: 1, manche_application: 1, statut: "jouee", id_cible: null },
+        { id_participant: pLea.id, id_carte: cElan.id, numero_manche: 1, manche_application: 1, statut: "jouee", id_cible: null },
         // Carte gardée une manche de plus : reçue en 2, jouée en 3 → c'est le cas que
         // numero_manche seul ne savait pas exprimer
-        { id_participant: pLea.id, id_carte: cTemps.id, numero_manche: 2, manche_application: 3, statut: "jouee", id_cible: null },
-        { id_participant: pTom.id, id_carte: cDouble.id, numero_manche: 2, manche_application: null, statut: "en_main", id_cible: null },
-        { id_participant: pInes.id, id_carte: cTemps.id, numero_manche: 1, manche_application: null, statut: "expiree", id_cible: null },
+        { id_participant: pLea.id, id_carte: cRallonge.id, numero_manche: 2, manche_application: 3, statut: "jouee", id_cible: null },
+        { id_participant: pTom.id, id_carte: cElan.id, numero_manche: 2, manche_application: null, statut: "en_main", id_cible: null },
+        { id_participant: pInes.id, id_carte: cRallonge.id, numero_manche: 1, manche_application: null, statut: "expiree", id_cible: null },
         // Malus avec cible → teste la relation auto-référencée vers Participant
-        { id_participant: pTom.id, id_carte: cVol.id, numero_manche: 3, manche_application: 3, statut: "jouee", id_cible: pLea.id },
-        { id_participant: pInes.id, id_carte: cBrouille.id, numero_manche: 2, manche_application: 2, statut: "jouee", id_cible: pTom.id },
-        { id_participant: pLea.id, id_carte: cTempsRed.id, numero_manche: 3, manche_application: null, statut: "expiree", id_cible: pInes.id },
+        { id_participant: pTom.id, id_carte: cContreMontre.id, numero_manche: 3, manche_application: 3, statut: "jouee", id_cible: pLea.id },
+        { id_participant: pInes.id, id_carte: cBrouillage.id, numero_manche: 2, manche_application: 2, statut: "jouee", id_cible: pTom.id },
+        { id_participant: pLea.id, id_carte: cBrouillage.id, numero_manche: 3, manche_application: null, statut: "expiree", id_cible: pInes.id },
         // Session en cours
-        { id_participant: pNora.id, id_carte: cDouble.id, numero_manche: 1, manche_application: null, statut: "en_main", id_cible: null },
-        { id_participant: pKarim.id, id_carte: cVol.id, numero_manche: 1, manche_application: null, statut: "en_main", id_cible: pNora.id },
+        { id_participant: pNora.id, id_carte: cElan.id, numero_manche: 1, manche_application: null, statut: "en_main", id_cible: null },
+        { id_participant: pElsa.id, id_carte: cIndice.id, numero_manche: 1, manche_application: null, statut: "en_main", id_cible: null },
+        { id_participant: pKarim.id, id_carte: cContreMontre.id, numero_manche: 1, manche_application: null, statut: "en_main", id_cible: pNora.id },
         // Sessions IUT
-        { id_participant: pAlex.id, id_carte: cTemps.id, numero_manche: 1, manche_application: 1, statut: "jouee", id_cible: null },
-        { id_participant: pSam.id, id_carte: cVol.id, numero_manche: 2, manche_application: 2, statut: "jouee", id_cible: pAlex.id },
-        { id_participant: pAlex.id, id_carte: cBrouille.id, numero_manche: 2, manche_application: null, statut: "en_main", id_cible: pSam.id },
+        { id_participant: pAlex.id, id_carte: cRallonge.id, numero_manche: 1, manche_application: 1, statut: "jouee", id_cible: null },
+        { id_participant: pSam.id, id_carte: cContreMontre.id, numero_manche: 2, manche_application: 2, statut: "jouee", id_cible: pAlex.id },
+        { id_participant: pAlex.id, id_carte: cBrouillage.id, numero_manche: 2, manche_application: null, statut: "en_main", id_cible: pSam.id },
     ]);
 
     // ---------------------------------------------------------------- Récapitulatif
     for (const entity of [
         Organisation, Utilisateur, Theme, Question, Carte,
-        Session, SessionTheme, Participant, ReponseParticipant, ReceptionCarte,
+        Session, SessionTheme, SessionQuestion, Participant, ReponseParticipant, ReceptionCarte,
     ]) {
         const count = await AppDataSource.getRepository(entity).count();
         console.log(`${entity.name.padEnd(20)} ${count}`);
