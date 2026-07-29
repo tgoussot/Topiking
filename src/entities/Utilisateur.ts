@@ -1,10 +1,10 @@
-import {Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany} from "typeorm"
+import {BaseEntity, Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany} from "typeorm"
 import {IsEmail, IsHash, IsInt} from "class-validator";
 import {Organisation} from "./Organisation";
 import {Session} from "./Session";
 
 @Entity()
-export class Utilisateur {
+export class Utilisateur extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number
 

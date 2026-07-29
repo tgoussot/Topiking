@@ -1,9 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm"
+import { BaseEntity, Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm"
 import { IsIn, IsNotEmpty, IsInt } from "class-validator"
 import { ReceptionCarte } from "./ReceptionCarte"
 
 @Entity()
-export class Carte {
+export class Carte extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number
 

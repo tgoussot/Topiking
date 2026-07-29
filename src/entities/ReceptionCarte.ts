@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from "typeorm"
+import { BaseEntity, Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from "typeorm"
 import { IsIn, IsInt, IsOptional } from "class-validator"
 import { Participant } from "./Participant"
 import { Carte } from "./Carte"
@@ -6,7 +6,7 @@ import { Carte } from "./Carte"
 // Entité de jonction pour l'association qualifiée RECOIT (Participant 0,n — 0,n Carte,
 // attributs numero_manche, statut, id_cible optionnel si malus ciblant un autre participant)
 @Entity()
-export class ReceptionCarte {
+export class ReceptionCarte extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number
 

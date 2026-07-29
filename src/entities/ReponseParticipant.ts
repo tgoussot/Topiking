@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique } from "typeorm"
+import { BaseEntity, Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique } from "typeorm"
 import { IsInt, IsOptional, Max, Min } from "class-validator"
 import { Participant } from "./Participant"
 import { Question } from "./Question"
@@ -7,7 +7,7 @@ import { Question } from "./Question"
 // attributs reponse_choisie, temps_reponse_ms, points)
 @Entity()
 @Unique(["id_participant", "id_question"])
-export class ReponseParticipant {
+export class ReponseParticipant extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number
 

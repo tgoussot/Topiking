@@ -1,10 +1,10 @@
-import {Column, Entity, OneToMany, PrimaryGeneratedColumn} from "typeorm";
+import {BaseEntity, Column, Entity, OneToMany, PrimaryGeneratedColumn} from "typeorm";
 import {Length} from "class-validator";
 import {Utilisateur} from "./Utilisateur";
 import {Theme} from "./Theme";
 
 @Entity()
-export class Organisation{
+export class Organisation extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number
 

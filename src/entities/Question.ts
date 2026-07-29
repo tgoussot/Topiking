@@ -1,10 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from "typeorm"
+import { BaseEntity, Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from "typeorm"
 import { IsInt, IsNotEmpty, Max, Min } from "class-validator"
 import { Theme } from "./Theme"
 import { ReponseParticipant } from "./ReponseParticipant"
+import { SessionQuestion } from "./SessionQuestion"
 
 @Entity()
-export class Question {
+export class Question extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number
 
@@ -55,4 +56,8 @@ export class Question {
     // car elle porte les attributs reponse_choisie, temps_reponse_ms, points (0,n — 0,n avec attribut = association qualifiée)
     @OneToMany(() => ReponseParticipant, (reponse) => reponse.question)
     reponses!: ReponseParticipant[]
+
+    // Sessions dans lesquelles cette question a été tirée
+    @OneToMany(() => SessionQuestion, (sessionQuestion) => sessionQuestion.question)
+    tirages!: SessionQuestion[]
 }

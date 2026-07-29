@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique } from "typeorm"
+import { BaseEntity, Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Unique } from "typeorm"
 import { IsInt } from "class-validator"
 import { Session } from "./Session"
 import { Theme } from "./Theme"
@@ -7,7 +7,7 @@ import { Theme } from "./Theme"
 @Entity()
 @Unique(["id_session", "id_theme"])
 @Unique(["id_session", "numero_manche"])
-export class SessionTheme {
+export class SessionTheme extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number
 

@@ -1,11 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from "typeorm"
+import { BaseEntity, Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from "typeorm"
 import { IsInt, IsNotEmpty } from "class-validator"
 import { Session } from "./Session"
 import { ReponseParticipant } from "./ReponseParticipant"
 import { ReceptionCarte } from "./ReceptionCarte"
 
 @Entity()
-export class Participant {
+export class Participant extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number
 

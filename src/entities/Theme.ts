@@ -1,11 +1,11 @@
-import {Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn} from "typeorm";
+import {BaseEntity, Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn} from "typeorm";
 import {IsBoolean, IsInt, IsNotEmpty, IsOptional} from "class-validator";
 import {Organisation} from "./Organisation";
 import {Question} from "./Question";
 import {SessionTheme} from "./SessionTheme";
 
 @Entity()
-export class Theme{
+export class Theme extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number
 
