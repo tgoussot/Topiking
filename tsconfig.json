@@ -16,5 +16,7 @@
     "noUncheckedSideEffectImports": true,
     "skipLibCheck": true
     //"typeRoots": ["./src"]
-  }
+  },
+  // Le build ne compile que src/. Les tests sont couverts par tsconfig.test.json.
+  "include": ["src/**/*.ts"]
 }

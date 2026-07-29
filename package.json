@@ -5,7 +5,12 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --no-experimental-strip-types node_modules/jest/bin/jest.js",
+    "test:unit": "npm test -- --selectProjects unit",
+    "test:integration": "npm test -- --selectProjects integration",
+    "test:watch": "npm test -- --watch",
+    "test:coverage": "npm test -- --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "nodemon",
@@ -19,13 +24,16 @@
     "express": "^5.2.1",
     "pg": "^8.22.0",
     "reflect-metadata": "^0.2.2",
-    "typeorm": "^1.1.0",
-    "typescript": "6.0.3"
+    "typeorm": "^1.1.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
     "@types/express": "^5.0.6",
     "@types/node": "^24.13.3",
+    "jest": "^30.4.2",
     "nodemon": "^3.1.9",
-    "ts-node": "^10.9.2"
+    "ts-jest": "^29.4.12",
+    "ts-node": "^10.9.2",
+    "typescript": "6.0.3"
   }
 }

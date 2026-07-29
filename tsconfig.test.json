@@ -1,0 +1,20 @@
+{
+  // Hérite du tsconfig de build, mais élargit la portée au dossier tests/.
+  // Le tsconfig principal garde rootDir: "./src" pour que dist/ reste propre.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    // Ce tsconfig ne sert qu'à la vérification de types (npm run typecheck).
+    // declaration et sourceMap sont hérités du tsconfig de build et doivent
+    // être coupés ici, sinon tsc écrit des .js/.d.ts à côté des tests,
+    // que Jest exécuterait ensuite en double.
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    // Pas de "jest" ici : les tests importent describe/it/expect depuis
+    // @jest/globals plutôt que de compter sur les globales de @types/jest.
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "jest.config.ts"]
+}
