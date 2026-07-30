@@ -1,0 +1,31 @@
+info:
+  name: 04 Rejoindre avec un pseudo trop court - 400
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/api/participants"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "code_acces": {{code_joueurs}},
+        "pseudo": "A"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("refuse un pseudo d'un seul caractère", function () {
+          expect(res.getStatus()).to.equal(400);
+        });

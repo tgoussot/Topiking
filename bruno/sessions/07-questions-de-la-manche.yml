@@ -1,0 +1,54 @@
+info:
+  name: 07 Questions tirées pour la manche 1 - 200
+  type: http
+  seq: 7
+
+http:
+  method: GET
+  url: "{{base_url}}/api/sessions/{{id_session}}/manches/1/questions"
+  headers:
+    - name: Cookie
+      value: "token={{token_animateur}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("renvoie le tirage avec un 200", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("la manche compte trois questions", function () {
+          expect(res.getBody()).to.be.an("array");
+          expect(res.getBody().length).to.equal(3);
+        });
+
+        test("les questions sont ordonnées de 1 à 3", function () {
+          const ordres = res.getBody().map((tirage) => tirage.ordre);
+
+          expect(ordres).to.eql([1, 2, 3]);
+        });
+
+        test("chaque tirage porte un énoncé", function () {
+          res.getBody().forEach((tirage) => {
+            expect(tirage.enonce).to.be.a("string");
+          });
+        });
+
+        test("deux questions différentes sont tirées", function () {
+          const ids = res.getBody().map((tirage) => tirage.id_question);
+
+          expect(new Set(ids).size).to.equal(ids.length);
+        });
+
+        test("le tirage ne livre pas les propositions ni la bonne réponse", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("index_bonne_reponse");
+          expect(corps).to.not.contain("proposition_1");
+        });

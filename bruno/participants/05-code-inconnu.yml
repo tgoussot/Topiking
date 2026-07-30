@@ -1,0 +1,31 @@
+info:
+  name: 05 Rejoindre avec un code inconnu - 404
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{base_url}}/api/participants"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "code_acces": {{code_invitation_inconnu}},
+        "pseudo": "Perdu"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "404"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("aucune partie ne correspond", function () {
+          expect(res.getStatus()).to.equal(404);
+        });

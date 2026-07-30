@@ -1,0 +1,34 @@
+info:
+  name: 04 Lire une session par son code - 200
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{base_url}}/api/sessions/code/{{code_acces}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("trouve la session avec un 200", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("renvoie bien la session créée juste avant", function () {
+          expect(res.getBody().id).to.equal(bru.getVar("id_session"));
+          expect(res.getBody().code_acces).to.equal(bru.getVar("code_acces"));
+        });
+
+        test("la route est ouverte : aucun cookie n'a été envoyé", function () {
+          expect(res.getStatus()).to.not.equal(401);
+        });
+
+        test("ne divulgue pas l'animateur au futur joueur", function () {
+          expect(res.getBody()).to.not.have.property("id_animateur");
+        });

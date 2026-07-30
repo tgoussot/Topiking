@@ -1,0 +1,116 @@
+info:
+  name: 03 Créer une session valide - 201
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/api/sessions"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Cookie
+      value: "token={{token_animateur}}"
+  body:
+    type: json
+    data: |-
+      {
+        "id_themes": [{{id_theme_1}}, {{id_theme_2}}, {{id_theme_3}}]
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.id
+      operator: isNumber
+
+  scripts:
+    - type: before-request
+      code: |-
+        // L'animateur doit appartenir à l'organisation qui porte les trois thèmes,
+        // d'où le code d'invitation de cette même organisation.
+        const email = `animateur-${Date.now()}@exemple.fr`;
+        const motDePasse = "MonMotDePasse1!";
+
+        const inscription = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs`,
+          headers: { "Content-Type": "application/json" },
+          data: {
+            email: email,
+            nom: "Animateur",
+            mot_de_passe: motDePasse,
+            code_invitation: Number(bru.getEnvVar("code_invitation_themes")),
+          },
+        });
+
+        if (inscription.status !== 201) {
+          throw new Error(
+            `Inscription impossible (${inscription.status}). ` +
+            `Le seed est-il chargé ? Code attendu : ${bru.getEnvVar("code_invitation_themes")}.`
+          );
+        }
+
+        const connexion = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs/tokens`,
+          headers: { "Content-Type": "application/json" },
+          data: { email: email, mot_de_passe: motDePasse },
+        });
+
+        if (connexion.status !== 200) {
+          throw new Error(`Connexion impossible (${connexion.status}).`);
+        }
+
+        const entetes = connexion.headers;
+        const cle = Object.keys(entetes).find((nom) => nom.toLowerCase() === "set-cookie");
+        const brut = Array.isArray(entetes[cle]) ? entetes[cle].join("; ") : String(entetes[cle]);
+        const trouve = brut.match(/token=([^;]+)/);
+
+        if (!trouve) {
+          throw new Error("Aucun cookie token dans la réponse de connexion.");
+        }
+
+        bru.setVar("token_animateur", trouve[1]);
+        bru.setVar("id_animateur", inscription.data.id);
+
+    - type: tests
+      code: |-
+        // GARDE-FOU : la capture se fait ici et non dans un post-response.
+        // Le CLI Bruno n'exécute pas les scripts post-response, les requêtes
+        // suivantes partiraient alors sur une URL incomplète, donc en 400.
+        if (res.getStatus() === 201) {
+          bru.setVar("id_session", res.getBody().id);
+          bru.setVar("code_acces", res.getBody().code_acces);
+        }
+
+        test("crée la session avec un 201", function () {
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("la session naît en attente de joueurs", function () {
+          expect(res.getBody().statut).to.equal("en_attente");
+        });
+
+        test("le code d'accès est un nombre à six chiffres", function () {
+          const code = res.getBody().code_acces;
+
+          expect(code).to.be.a("number");
+          expect(code).to.be.at.least(100000);
+          expect(code).to.be.at.most(999999);
+        });
+
+        test("aucune manche ni question n'est encore engagée", function () {
+          expect(res.getBody().numero_manche_courante).to.equal(null);
+          expect(res.getBody().id_question_courante).to.equal(null);
+        });
+
+        test("la fenêtre de cartes est fermée au départ", function () {
+          expect(res.getBody().fenetre_cartes_ouverte).to.equal(false);
+        });
+
+        test("la session est rattachée à son animateur", function () {
+          expect(res.getBody().id_animateur).to.equal(bru.getVar("id_animateur"));
+        });

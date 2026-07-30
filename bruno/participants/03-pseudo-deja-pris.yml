@@ -1,0 +1,37 @@
+info:
+  name: 03 Rejoindre avec un pseudo déjà pris - 409
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/api/participants"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "code_acces": {{code_joueurs}},
+        "pseudo": "alice martin"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "409"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("refuse le pseudo déjà pris", function () {
+          // La comparaison ignore la casse : « alice martin » et
+          // « Alice Martin » désigneraient le même joueur à l'écran.
+          expect(res.getStatus()).to.equal(409);
+        });
+
+        test("le refus s'explique", function () {
+          expect(res.getBody().erreur).to.contain("déjà pris");
+        });

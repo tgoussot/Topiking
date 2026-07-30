@@ -1,0 +1,38 @@
+info:
+  name: 01 Créer une session sans cookie - 401
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base_url}}/api/sessions"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id_themes": [1, 2, 4]
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("refuse la création sans authentification avec un 401", function () {
+          expect(res.getStatus()).to.equal(401);
+        });
+
+        test("explique le refus", function () {
+          expect(res.getBody()).to.have.property("erreur");
+        });
+
+        test("ne crée aucune session", function () {
+          expect(res.getBody()).to.not.have.property("code_acces");
+        });

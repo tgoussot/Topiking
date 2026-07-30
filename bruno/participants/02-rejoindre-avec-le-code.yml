@@ -1,0 +1,51 @@
+info:
+  name: 02 Rejoindre la partie avec le code - 201
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/api/participants"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "code_acces": {{code_joueurs}},
+        "pseudo": "  Alice   Martin  "
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.id
+      operator: isNumber
+
+  scripts:
+    - type: tests
+      code: |-
+        if (res.getStatus() === 201) {
+          bru.setVar("id_alice", res.getBody().id);
+        }
+
+        test("le joueur rejoint sans compte ni jeton", function () {
+          // Aucune authentification côté joueur : le code suffit à entrer,
+          // et l'identifiant reçu tient lieu d'identité pour la suite.
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("le pseudo est nettoyé de ses espaces", function () {
+          expect(res.getBody().pseudo).to.equal("Alice Martin");
+        });
+
+        test("le joueur démarre à zéro point", function () {
+          expect(res.getBody().score_total).to.equal(0);
+        });
+
+        test("le joueur reçoit l'identifiant de sa session", function () {
+          expect(res.getBody().id_session).to.equal(bru.getVar("id_session_joueurs"));
+        });

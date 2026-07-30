@@ -1,0 +1,57 @@
+info:
+  name: 10 Annuler la session - 200
+  type: http
+  seq: 10
+
+http:
+  method: DELETE
+  url: "{{base_url}}/api/sessions/{{id_session}}"
+  headers:
+    - name: Cookie
+      value: "token={{token_animateur}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("annule la session avec un 200", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("la session passe au statut annulee", function () {
+          expect(res.getBody().statut).to.equal("annulee");
+        });
+
+        test("la date de fin est renseignée", function () {
+          expect(res.getBody().date_fin).to.not.equal(null);
+        });
+
+        test("plus aucune question ni fenêtre de cartes n'est ouverte", function () {
+          expect(res.getBody().id_question_courante).to.equal(null);
+          expect(res.getBody().fenetre_cartes_ouverte).to.equal(false);
+        });
+
+        test("le code ne retrouve plus la session annulée", async function () {
+          // GARDE-FOU : bru.sendRequest lève une exception sur un statut d'erreur
+          // au lieu de le retourner. Le 404 attendu doit donc être rattrapé,
+          // sinon le test échoue en annonçant l'échec de la requête.
+          let statut = null;
+
+          try {
+            const recherche = await bru.sendRequest({
+              method: "GET",
+              url: `${bru.getEnvVar("base_url")}/api/sessions/code/${bru.getVar("code_acces")}`,
+            });
+
+            statut = recherche.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(404);
+        });

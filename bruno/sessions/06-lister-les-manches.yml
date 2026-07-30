@@ -1,0 +1,51 @@
+info:
+  name: 06 Lister les manches de la session - 200
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{base_url}}/api/sessions/{{id_session}}/manches"
+  headers:
+    - name: Cookie
+      value: "token={{token_animateur}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("renvoie les manches avec un 200", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("il y a une manche par thème choisi", function () {
+          expect(res.getBody()).to.be.an("array");
+          expect(res.getBody().length).to.equal(3);
+        });
+
+        test("les manches sont numérotées de 1 à 3 dans l'ordre", function () {
+          const numeros = res.getBody().map((manche) => manche.numero_manche);
+
+          expect(numeros).to.eql([1, 2, 3]);
+        });
+
+        test("chaque manche porte le thème demandé", function () {
+          const themes = res.getBody().map((manche) => manche.id_theme);
+
+          expect(themes).to.eql([
+            Number(bru.getEnvVar("id_theme_1")),
+            Number(bru.getEnvVar("id_theme_2")),
+            Number(bru.getEnvVar("id_theme_3")),
+          ]);
+        });
+
+        test("le libellé du thème est joint pour l'affichage", function () {
+          res.getBody().forEach((manche) => {
+            expect(manche.libelle_theme).to.be.a("string");
+          });
+        });

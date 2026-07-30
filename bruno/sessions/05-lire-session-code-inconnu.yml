@@ -1,0 +1,25 @@
+info:
+  name: 05 Lire une session avec un code inconnu - 404
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{base_url}}/api/sessions/code/999999"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "404"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("aucune session active sous ce code, donc un 404", function () {
+          expect(res.getStatus()).to.equal(404);
+        });
+
+        test("explique l'absence", function () {
+          expect(res.getBody()).to.have.property("erreur");
+        });

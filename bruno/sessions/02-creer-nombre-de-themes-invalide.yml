@@ -1,0 +1,94 @@
+info:
+  name: 02 Créer avec deux thèmes seulement - 400
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/api/sessions"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Cookie
+      value: "token={{token_animateur}}"
+  body:
+    type: json
+    data: |-
+      {
+        "id_themes": [1, 2]
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : bru.sendRequest a son propre pot à cookies, son token
+        // n'est pas joint ici. D'où l'en-tête Cookie posé à la main ci-dessus.
+        const email = `animateur-${Date.now()}@exemple.fr`;
+        const motDePasse = "MonMotDePasse1!";
+
+        const inscription = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs`,
+          headers: { "Content-Type": "application/json" },
+          data: {
+            email: email,
+            nom: "Animateur",
+            mot_de_passe: motDePasse,
+            code_invitation: Number(bru.getEnvVar("code_invitation_valide")),
+          },
+        });
+
+        if (inscription.status !== 201) {
+          throw new Error(
+            `Inscription impossible (${inscription.status}). ` +
+            `Le seed est-il chargé ? Code attendu : ${bru.getEnvVar("code_invitation_valide")}.`
+          );
+        }
+
+        const connexion = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs/tokens`,
+          headers: { "Content-Type": "application/json" },
+          data: { email: email, mot_de_passe: motDePasse },
+        });
+
+        if (connexion.status !== 200) {
+          throw new Error(`Connexion impossible (${connexion.status}).`);
+        }
+
+        const entetes = connexion.headers;
+        const cle = Object.keys(entetes).find((nom) => nom.toLowerCase() === "set-cookie");
+        const brut = Array.isArray(entetes[cle]) ? entetes[cle].join("; ") : String(entetes[cle]);
+        const trouve = brut.match(/token=([^;]+)/);
+
+        if (!trouve) {
+          throw new Error("Aucun cookie token dans la réponse de connexion.");
+        }
+
+        bru.setVar("token_animateur", trouve[1]);
+
+    - type: tests
+      code: |-
+        test("refuse un nombre de thèmes incorrect avec un 400", function () {
+          expect(res.getStatus()).to.equal(400);
+        });
+
+        test("le refus vient de la validation du corps", function () {
+          expect(res.getBody()).to.have.property("champs");
+        });
+
+        test("le champ fautif est id_themes", function () {
+          const champs = res.getBody().champs;
+
+          expect(champs.some((champ) => champ.propriete === "id_themes")).to.equal(true);
+        });
+
+        test("ne crée aucune session", function () {
+          expect(res.getBody()).to.not.have.property("code_acces");
+        });

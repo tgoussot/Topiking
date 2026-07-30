@@ -1,0 +1,35 @@
+info:
+  name: 06 Un deuxième joueur rejoint - 201
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{base_url}}/api/participants"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "code_acces": {{code_joueurs}},
+        "pseudo": "Bob"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+
+  scripts:
+    - type: tests
+      code: |-
+        if (res.getStatus() === 201) {
+          bru.setVar("id_bob", res.getBody().id);
+        }
+
+        test("Bob rejoint la partie", function () {
+          expect(res.getStatus()).to.equal(201);
+        });

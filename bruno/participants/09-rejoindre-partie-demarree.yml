@@ -1,0 +1,71 @@
+info:
+  name: 09 Rejoindre une partie déjà lancée - 409
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{base_url}}/api/participants"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "code_acces": {{code_joueurs}},
+        "pseudo": "Retardataire"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "409"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // Il faut deux joueurs pour démarrer : Bob est reparti au test 08,
+        // on complète l'effectif avant de lancer la partie.
+        await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/participants`,
+          headers: { "Content-Type": "application/json" },
+          data: { code_acces: Number(bru.getVar("code_joueurs")), pseudo: "Chloe" },
+        });
+
+        const demarrage = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/sessions/${bru.getVar("id_session_joueurs")}/demarrage`,
+          headers: { Cookie: `token=${bru.getVar("token_joueurs")}` },
+        });
+
+        if (demarrage.status !== 200) {
+          throw new Error(`Démarrage impossible (${demarrage.status}).`);
+        }
+
+    - type: tests
+      code: |-
+        test("la porte est fermée une fois la partie lancée", function () {
+          expect(res.getStatus()).to.equal(409);
+        });
+
+        test("quitter n'est plus possible non plus", async function () {
+          // Retirer un joueur en cours de partie fausserait le classement de
+          // tous les autres : il reste, même s'il ne joue plus.
+          let statut = null;
+
+          try {
+            const depart = await bru.sendRequest({
+              method: "DELETE",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("id_alice")}`,
+            });
+
+            statut = depart.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(409);
+        });

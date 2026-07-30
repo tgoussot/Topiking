@@ -1,0 +1,30 @@
+info:
+  name: 08 Quitter avant le départ - 204
+  type: http
+  seq: 8
+
+http:
+  method: DELETE
+  url: "{{base_url}}/api/participants/{{id_bob}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "204"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("le joueur peut partir tant que rien n'a commencé", function () {
+          expect(res.getStatus()).to.equal(204);
+        });
+
+        test("il ne figure plus dans la liste", async function () {
+          const liste = await bru.sendRequest({
+            method: "GET",
+            url: `${bru.getEnvVar("base_url")}/api/sessions/${bru.getVar("id_session_joueurs")}/participants`,
+          });
+
+          expect(liste.data.length).to.equal(1);
+        });
