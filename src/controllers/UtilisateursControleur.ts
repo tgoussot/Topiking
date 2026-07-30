@@ -66,3 +66,20 @@ export async function moi(baseRequest: express.Request, res:express.Response){
     return res.status(200).json({id: req.utilisateur.id, email: req.utilisateur.email, nom:req.utilisateur.nom})
 }
 
+export async function monOrganisation(baseRequest: express.Request, res:express.Response){
+    const req = baseRequest as RequeteAuthentifiee;
+
+    const organisation = await Organisation.findOneBy({id: req.utilisateur.id_organisation});
+
+    if(!organisation){
+        return res.status(404).json({erreur:"Organisation introuvable"});
+    }
+
+    return res.status(200).json({
+        id: organisation.id,
+        nom: organisation.nom,
+        slug: organisation.slug,
+        code_invitation: organisation.code_invitation,
+    });
+}
+

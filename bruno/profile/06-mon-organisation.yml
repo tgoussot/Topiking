@@ -1,0 +1,86 @@
+info:
+  name: 06 Consulter mon organisation - 200
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{base_url}}/api/utilisateurs/moi/organisation"
+  headers:
+    - name: Cookie
+      value: "token={{token_organisation}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // Un compte neuf plutôt que celui du dossier : les requêtes 04 et 05
+        // ont déconnecté et vidé le pot à cookies.
+        const email = `organisation-${Date.now()}@exemple.fr`;
+        const motDePasse = "MonMotDePasse1!";
+
+        const inscription = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs`,
+          headers: { "Content-Type": "application/json" },
+          data: {
+            email: email,
+            nom: "Animateur",
+            mot_de_passe: motDePasse,
+            code_invitation: Number(bru.getEnvVar("code_invitation_valide")),
+          },
+        });
+
+        if (inscription.status !== 201) {
+          throw new Error(`Inscription impossible (${inscription.status}).`);
+        }
+
+        const connexion = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs/tokens`,
+          headers: { "Content-Type": "application/json" },
+          data: { email: email, mot_de_passe: motDePasse },
+        });
+
+        const entetes = connexion.headers;
+        const cle = Object.keys(entetes).find((nom) => nom.toLowerCase() === "set-cookie");
+        const brut = Array.isArray(entetes[cle]) ? entetes[cle].join("; ") : String(entetes[cle]);
+        const trouve = brut.match(/token=([^;]+)/);
+
+        if (!trouve) {
+          throw new Error("Aucun cookie token dans la réponse de connexion.");
+        }
+
+        bru.setVar("token_organisation", trouve[1]);
+
+    - type: tests
+      code: |-
+        test("renvoie l'organisation du compte connecté", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("le code d'invitation est fourni", function () {
+          // Sans cette route, un animateur ne pourrait pas récupérer le code
+          // permettant d'inviter un collègue.
+          expect(res.getBody().code_invitation).to.equal(
+            Number(bru.getEnvVar("code_invitation_valide"))
+          );
+        });
+
+        test("le slug et le nom accompagnent le code", function () {
+          expect(res.getBody().slug).to.be.a("string");
+          expect(res.getBody().nom).to.be.a("string");
+        });
+
+        test("aucune donnée de compte ne transite", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("mot_de_passe");
+          expect(corps).to.not.contain("$argon2");
+          expect(corps).to.not.contain("email");
+        });
