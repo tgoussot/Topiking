@@ -1,0 +1,45 @@
+info:
+  name: 14 Consulter le classement général - 200
+  type: http
+  seq: 14
+
+http:
+  method: GET
+  url: "{{base_url}}/api/sessions/{{session_partie}}/classement"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("le podium est ouvert à tous, sans jeton", function () {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody().length).to.equal(3);
+        });
+
+        test("les rangs se suivent à partir de 1", function () {
+          const rangs = res.getBody().map((ligne) => ligne.rang);
+
+          expect(rangs).to.eql([1, 2, 3]);
+        });
+
+        test("les points décroissent du premier au dernier", function () {
+          const points = res.getBody().map((ligne) => ligne.points);
+
+          expect(points[0]).to.be.at.least(points[1]);
+          expect(points[1]).to.be.at.least(points[2]);
+        });
+
+        test("le classement ne divulgue rien de sensible", function () {
+          // Route ouverte aux joueurs : ni animateur, ni compte, ni jeton.
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("id_animateur");
+          expect(corps).to.not.contain("email");
+          expect(corps).to.not.contain("mot_de_passe");
+          expect(corps).to.not.contain("eyJ");
+        });

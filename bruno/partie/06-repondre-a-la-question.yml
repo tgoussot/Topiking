@@ -1,0 +1,83 @@
+info:
+  name: 06 Les joueurs répondent - 201
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{base_url}}/api/participants/{{alice}}/reponses"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id_question": {{question_courante}},
+        "index_choisi": 1
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("la réponse est enregistrée", function () {
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("les points ne sont JAMAIS renvoyés au joueur", function () {
+          // Renvoyer les points dirait immédiatement au joueur s'il a bon,
+          // avant même l'affichage de la correction : c'est toute la
+          // mécanique du jeu qui tomberait.
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("points");
+          expect(corps).to.not.contain("index_bonne_reponse");
+        });
+
+        test("le temps de réponse est mesuré", function () {
+          expect(res.getBody().temps_reponse_ms).to.be.a("number");
+        });
+
+        test("répondre deux fois est refusé", async function () {
+          let statut = null;
+
+          try {
+            const seconde = await bru.sendRequest({
+              method: "POST",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("alice")}/reponses`,
+              headers: { "Content-Type": "application/json" },
+              data: { id_question: bru.getVar("question_courante"), index_choisi: 3 },
+            });
+
+            statut = seconde.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(409);
+        });
+
+        test("Bob et Chloé répondent aussi", async function () {
+          const bob = await bru.sendRequest({
+            method: "POST",
+            url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("bob")}/reponses`,
+            headers: { "Content-Type": "application/json" },
+            data: { id_question: bru.getVar("question_courante"), index_choisi: 2 },
+          });
+
+          const chloe = await bru.sendRequest({
+            method: "POST",
+            url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("chloe")}/reponses`,
+            headers: { "Content-Type": "application/json" },
+            data: { id_question: bru.getVar("question_courante"), index_choisi: 3 },
+          });
+
+          expect(bob.status).to.equal(201);
+          expect(chloe.status).to.equal(201);
+        });

@@ -1,0 +1,72 @@
+info:
+  name: 08 Jouer le reste de la manche 1 et la clôturer - 200
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{base_url}}/api/sessions/{{session_partie}}/manches/courante/cloture"
+  headers:
+    - name: Cookie
+      value: "token={{token_partie}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // La question 1 a déjà été jouée. On enchaîne les suivantes de la même
+        // manière : ouvrir, faire répondre les trois joueurs, clôturer.
+        const base = bru.getEnvVar("base_url");
+        const session = bru.getVar("session_partie");
+        const cookie = { Cookie: `token=${bru.getVar("token_partie")}` };
+        const joueurs = [bru.getVar("alice"), bru.getVar("bob"), bru.getVar("chloe")];
+        const questionsParManche = Number(bru.getEnvVar("questions_par_manche"));
+
+        for (let ordre = 2; ordre <= questionsParManche; ordre++) {
+          const ouverture = await bru.sendRequest({
+            method: "POST",
+            url: `${base}/api/sessions/${session}/questions`,
+            headers: { "Content-Type": "application/json", ...cookie },
+            data: { numero_manche: 1, ordre: ordre },
+          });
+
+          const idQuestion = ouverture.data.id_question;
+
+          for (let i = 0; i < joueurs.length; i++) {
+            await bru.sendRequest({
+              method: "POST",
+              url: `${base}/api/participants/${joueurs[i]}/reponses`,
+              headers: { "Content-Type": "application/json" },
+              data: { id_question: idQuestion, index_choisi: (i % 4) + 1 },
+            });
+          }
+
+          await bru.sendRequest({
+            method: "DELETE",
+            url: `${base}/api/sessions/${session}/questions/courante`,
+            headers: cookie,
+          });
+        }
+
+    - type: tests
+      code: |-
+        test("la manche se clôt", function () {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody().numero_manche).to.equal(1);
+        });
+
+        test("le classement de la manche est établi", function () {
+          expect(res.getBody().classement.length).to.equal(3);
+        });
+
+        test("le premier reçoit un malus, le dernier un bonus", function () {
+          // La mécanique d'équilibrage du jeu : celui qui mène est freiné,
+          // celui qui décroche est aidé.
+          expect(res.getBody().malus_au_premier).to.not.equal(null);
+          expect(res.getBody().bonus_au_dernier).to.not.equal(null);
+        });

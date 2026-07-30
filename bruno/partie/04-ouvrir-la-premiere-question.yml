@@ -1,0 +1,75 @@
+info:
+  name: 04 Ouvrir la première question - 200
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/api/sessions/{{session_partie}}/questions"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Cookie
+      value: "token={{token_partie}}"
+  body:
+    type: json
+    data: |-
+      {
+        "numero_manche": 1,
+        "ordre": 1
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        if (res.getStatus() === 200) {
+          bru.setVar("question_courante", res.getBody().id_question);
+        }
+
+        test("la question s'ouvre", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("la bonne réponse ne fuit JAMAIS à l'ouverture", function () {
+          // Ce payload est destiné à être diffusé à tous les joueurs : y
+          // laisser la solution ruinerait la partie. C'est le test de sécurité
+          // central du jeu.
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("index_bonne_reponse");
+          expect(corps).to.not.contain("explication");
+        });
+
+        test("les quatre propositions et le timer sont fournis", function () {
+          expect(res.getBody().propositions.length).to.equal(4);
+          expect(res.getBody().duree_timer_ms).to.be.above(0);
+        });
+
+        test("ouvrir une seconde question est refusé", async function () {
+          // Une seule question à la fois : il faut clôturer avant d'enchaîner.
+          let statut = null;
+
+          try {
+            const seconde = await bru.sendRequest({
+              method: "POST",
+              url: `${bru.getEnvVar("base_url")}/api/sessions/${bru.getVar("session_partie")}/questions`,
+              headers: {
+                "Content-Type": "application/json",
+                Cookie: `token=${bru.getVar("token_partie")}`,
+              },
+              data: { numero_manche: 1, ordre: 2 },
+            });
+
+            statut = seconde.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(409);
+        });

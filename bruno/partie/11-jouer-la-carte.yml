@@ -1,0 +1,97 @@
+info:
+  name: 11 Jouer la carte sur une cible - 200
+  type: http
+  seq: 11
+
+http:
+  method: POST
+  url: "{{base_url}}/api/participants/{{porteur_malus}}/cartes"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id_reception": {{carte_a_jouer}},
+        "id_cible": {{cible_choisie}}
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // La cible est relue juste avant de frapper : sa liste dépend du
+        // classement, qui varie d'une exécution à l'autre.
+        const cibles = await bru.sendRequest({
+          method: "GET",
+          url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("porteur_malus")}/cibles`,
+        });
+
+        bru.setVar("cible_choisie", cibles.data.cibles[0].id_participant);
+
+    - type: tests
+      code: |-
+        test("la carte part sur sa cible", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("la réponse est un tableau de lignes jouées", function () {
+          // Toujours un tableau : au-delà de six joueurs, un seul malus
+          // touche plusieurs cibles d'un coup.
+          expect(res.getBody()).to.be.an("array");
+          expect(res.getBody()[0].statut).to.equal("jouee");
+        });
+
+        test("l'effet est reporté à la manche suivante", function () {
+          // Une carte jouée entre la manche 1 et la 2 agit à la manche 2.
+          expect(res.getBody()[0].manche_application).to.equal(2);
+        });
+
+        test("la même carte ne se rejoue pas", async function () {
+          let statut = null;
+
+          try {
+            const seconde = await bru.sendRequest({
+              method: "POST",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("porteur_malus")}/cartes`,
+              headers: { "Content-Type": "application/json" },
+              data: {
+                id_reception: bru.getVar("carte_a_jouer"),
+                id_cible: bru.getVar("cible_choisie"),
+              },
+            });
+
+            statut = seconde.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(409);
+        });
+
+        test("un autre joueur ne peut pas jouer cette carte", async function () {
+          // Rien n'authentifie les joueurs : c'est le service qui vérifie
+          // qu'une carte appartient bien à celui qui la joue.
+          let statut = null;
+
+          try {
+            const vol = await bru.sendRequest({
+              method: "POST",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("porteur_bonus")}/cartes`,
+              headers: { "Content-Type": "application/json" },
+              data: { id_reception: bru.getVar("carte_a_jouer") },
+            });
+
+            statut = vol.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(403);
+        });

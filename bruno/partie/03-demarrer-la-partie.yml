@@ -1,0 +1,33 @@
+info:
+  name: 03 Démarrer la partie - 200
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/api/sessions/{{session_partie}}/demarrage"
+  headers:
+    - name: Cookie
+      value: "token={{token_partie}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("la partie passe en cours", function () {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody().statut).to.equal("en_cours");
+        });
+
+        test("la première manche s'ouvre", function () {
+          expect(res.getBody().numero_manche_courante).to.equal(1);
+        });
+
+        test("la date de début est posée", function () {
+          expect(res.getBody().date_debut).to.not.equal(null);
+        });

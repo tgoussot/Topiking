@@ -1,0 +1,63 @@
+info:
+  name: 12 Fermer la fenêtre puis passer à la manche 2 - 200
+  type: http
+  seq: 12
+
+http:
+  method: DELETE
+  url: "{{base_url}}/api/sessions/{{session_partie}}/fenetre-cartes"
+  headers:
+    - name: Cookie
+      value: "token={{token_partie}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : la clôture de manche ouvre elle-même la fenêtre de jeu
+        // des cartes, et la manche suivante reste bloquée tant qu'elle est
+        // ouverte. On vérifie ce refus AVANT de fermer, car c'est le point le
+        // plus déroutant du déroulé : sans cette fermeture explicite, il
+        // faudrait attendre les vingt secondes de FENETRE_CARTES_S.
+        let statut = null;
+
+        try {
+          const prematuree = await bru.sendRequest({
+            method: "POST",
+            url: `${bru.getEnvVar("base_url")}/api/sessions/${bru.getVar("session_partie")}/manches/suivante`,
+            headers: { Cookie: `token=${bru.getVar("token_partie")}` },
+          });
+
+          statut = prematuree.status;
+        } catch (erreur) {
+          statut = erreur.status;
+        }
+
+        if (statut !== 409) {
+          throw new Error(
+            `La manche suivante aurait dû être refusée tant que la fenêtre est ouverte (obtenu ${statut}).`
+          );
+        }
+
+    - type: tests
+      code: |-
+        test("la fenêtre se referme", function () {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody().fenetre_cartes_ouverte).to.equal(false);
+        });
+
+        test("la manche 2 s'ouvre alors", async function () {
+          const suivante = await bru.sendRequest({
+            method: "POST",
+            url: `${bru.getEnvVar("base_url")}/api/sessions/${bru.getVar("session_partie")}/manches/suivante`,
+            headers: { Cookie: `token=${bru.getVar("token_partie")}` },
+          });
+
+          expect(suivante.status).to.equal(200);
+          expect(suivante.data.numero_manche_courante).to.equal(2);
+        });

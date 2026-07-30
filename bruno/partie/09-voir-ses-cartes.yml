@@ -1,0 +1,49 @@
+info:
+  name: 09 Le premier du classement voit son malus - 200
+  type: http
+  seq: 9
+
+http:
+  method: GET
+  url: "{{base_url}}/api/participants/{{porteur_malus}}/cartes"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // Le porteur du malus est le premier du classement de la manche : on
+        // le relit plutôt que de le deviner, les scores dépendant du temps de
+        // réponse réel.
+        const classement = await bru.sendRequest({
+          method: "GET",
+          url: `${bru.getEnvVar("base_url")}/api/sessions/${bru.getVar("session_partie")}/manches/1/classement`,
+        });
+
+        bru.setVar("porteur_malus", classement.data[0].id_participant);
+        bru.setVar("porteur_bonus", classement.data[classement.data.length - 1].id_participant);
+
+    - type: tests
+      code: |-
+        test("le joueur voit sa main", function () {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody().length).to.be.at.least(1);
+        });
+
+        test("la carte porte son libellé et son effet", function () {
+          const carte = res.getBody()[0];
+
+          bru.setVar("carte_a_jouer", carte.id_reception);
+          bru.setVar("type_carte", carte.type);
+
+          expect(carte.libelle).to.be.a("string");
+          expect(carte.effet).to.be.a("string");
+        });
+
+        test("elle est encore en main", function () {
+          expect(res.getBody()[0].statut).to.equal("en_main");
+        });

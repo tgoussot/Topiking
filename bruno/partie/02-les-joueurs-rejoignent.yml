@@ -1,0 +1,59 @@
+info:
+  name: 02 Trois joueurs rejoignent - 201
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/api/participants"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "code_acces": {{code_partie}},
+        "pseudo": "Alice"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+
+  scripts:
+    - type: tests
+      code: |-
+        if (res.getStatus() === 201) {
+          bru.setVar("alice", res.getBody().id);
+        }
+
+        test("Alice entre dans la partie", function () {
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("Bob et Chloé la rejoignent", async function () {
+          // Trois joueurs : à deux, l'attaquant et le dernier du classement
+          // se confondraient et aucun malus ne serait jouable.
+          const bob = await bru.sendRequest({
+            method: "POST",
+            url: `${bru.getEnvVar("base_url")}/api/participants`,
+            headers: { "Content-Type": "application/json" },
+            data: { code_acces: Number(bru.getVar("code_partie")), pseudo: "Bob" },
+          });
+
+          const chloe = await bru.sendRequest({
+            method: "POST",
+            url: `${bru.getEnvVar("base_url")}/api/participants`,
+            headers: { "Content-Type": "application/json" },
+            data: { code_acces: Number(bru.getVar("code_partie")), pseudo: "Chloe" },
+          });
+
+          bru.setVar("bob", bob.data.id);
+          bru.setVar("chloe", chloe.data.id);
+
+          expect(bob.status).to.equal(201);
+          expect(chloe.status).to.equal(201);
+        });

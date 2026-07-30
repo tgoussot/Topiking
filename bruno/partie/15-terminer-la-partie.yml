@@ -1,0 +1,73 @@
+info:
+  name: 15 Terminer la partie - 200
+  type: http
+  seq: 15
+
+http:
+  method: POST
+  url: "{{base_url}}/api/sessions/{{session_partie}}/fin"
+  headers:
+    - name: Cookie
+      value: "token={{token_partie}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("la partie est terminée", function () {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody().statut).to.equal("terminee");
+          expect(res.getBody().date_fin).to.not.equal(null);
+        });
+
+        test("les cartes non jouées ont expiré", async function () {
+          // Une carte restée en main après la fin ne doit pas pouvoir
+          // resservir dans une autre partie.
+          const cartes = await bru.sendRequest({
+            method: "GET",
+            url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("alice")}/cartes`,
+          });
+
+          expect(cartes.data.length).to.equal(0);
+        });
+
+        test("le code d'accès ne retrouve plus la partie", async function () {
+          let statut = null;
+
+          try {
+            const recherche = await bru.sendRequest({
+              method: "GET",
+              url: `${bru.getEnvVar("base_url")}/api/sessions/code/${bru.getVar("code_partie")}`,
+            });
+
+            statut = recherche.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(404);
+        });
+
+        test("répondre après la fin est refusé", async function () {
+          let statut = null;
+
+          try {
+            const tardive = await bru.sendRequest({
+              method: "POST",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("alice")}/reponses`,
+              headers: { "Content-Type": "application/json" },
+              data: { id_question: bru.getVar("question_courante"), index_choisi: 1 },
+            });
+
+            statut = tardive.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(409);
+        });

@@ -1,0 +1,55 @@
+info:
+  name: 05 Clôturer le départage - 200
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: "{{base_url}}/api/sessions/{{session_departage}}/mort-subite"
+  headers:
+    - name: Cookie
+      value: "token={{token_departage}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("le départage se referme sur son vainqueur", function () {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody().pseudo_vainqueur).to.equal("Premier");
+        });
+
+        test("relancer un départage sans égalité est refusé", async function () {
+          // Le vainqueur est désigné : il n'y a plus d'ex aequo en tête.
+          let statut = null;
+
+          try {
+            const relance = await bru.sendRequest({
+              method: "DELETE",
+              url: `${bru.getEnvVar("base_url")}/api/sessions/${bru.getVar("session_departage")}/mort-subite`,
+              headers: { Cookie: `token=${bru.getVar("token_departage")}` },
+            });
+
+            statut = relance.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(409);
+        });
+
+        test("la partie peut alors être terminée", async function () {
+          const fin = await bru.sendRequest({
+            method: "POST",
+            url: `${bru.getEnvVar("base_url")}/api/sessions/${bru.getVar("session_departage")}/fin`,
+            headers: { Cookie: `token=${bru.getVar("token_departage")}` },
+          });
+
+          expect(fin.status).to.equal(200);
+          expect(fin.data.statut).to.equal("terminee");
+        });

@@ -1,0 +1,49 @@
+info:
+  name: 03 Lancer la mort subite - 200
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/api/sessions/{{session_departage}}/mort-subite"
+  headers:
+    - name: Cookie
+      value: "token={{token_departage}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        if (res.getStatus() === 200) {
+          bru.setVar("question_departage", res.getBody().id_question);
+        }
+
+        test("la question de départage s'ouvre", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("la bonne réponse ne fuit JAMAIS", function () {
+          // Le service renvoie ici la question complète, solution comprise.
+          // Sans masquage, les finalistes recevraient la réponse : c'est le
+          // piège le plus grave du projet, et ce test le verrouille.
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("index_bonne_reponse");
+          expect(corps).to.not.contain("explication");
+          expect(corps).to.not.contain("id_theme");
+        });
+
+        test("le départage se joue sur sa propre manche", function () {
+          expect(res.getBody().numero_manche).to.equal(
+            Number(bru.getEnvVar("manche_mort_subite"))
+          );
+        });
+
+        test("les quatre propositions sont servies", function () {
+          expect(res.getBody().propositions.length).to.equal(4);
+        });

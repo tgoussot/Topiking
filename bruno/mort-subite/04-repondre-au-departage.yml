@@ -1,0 +1,76 @@
+info:
+  name: 04 Le premier à répondre juste l'emporte - 200
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/api/participants/{{finaliste_1}}/mort-subite"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "id_question": {{question_departage}},
+        "index_choisi": {{bonne_reponse_departage}}
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // Pour répondre juste, il faut connaître la solution — que la route
+        // joueur ne donne jamais. On la lit par le back-office animateur, ce
+        // qui illustre au passage le contraste entre les deux vues d'une même
+        // question.
+        const question = await bru.sendRequest({
+          method: "GET",
+          url: `${bru.getEnvVar("base_url")}/api/questions/${bru.getVar("question_departage")}`,
+          headers: { Cookie: `token=${bru.getVar("token_departage")}` },
+        });
+
+        if (question.data.index_bonne_reponse === undefined) {
+          throw new Error("Le back-office devrait exposer la bonne réponse à l'animateur.");
+        }
+
+        bru.setVar("bonne_reponse_departage", question.data.index_bonne_reponse);
+
+    - type: tests
+      code: |-
+        test("la réponse est acceptée", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("le finaliste qui répond juste est désigné vainqueur", function () {
+          expect(res.getBody().id_vainqueur).to.equal(bru.getVar("finaliste_1"));
+          expect(res.getBody().pseudo_vainqueur).to.equal("Premier");
+        });
+
+        test("une fois tranché, plus personne ne répond", async function () {
+          let statut = null;
+
+          try {
+            const tardif = await bru.sendRequest({
+              method: "POST",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("finaliste_2")}/mort-subite`,
+              headers: { "Content-Type": "application/json" },
+              data: {
+                id_question: bru.getVar("question_departage"),
+                index_choisi: bru.getVar("bonne_reponse_departage"),
+              },
+            });
+
+            statut = tardif.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(409);
+        });

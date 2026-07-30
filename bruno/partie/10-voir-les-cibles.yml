@@ -1,0 +1,35 @@
+info:
+  name: 10 Consulter les cibles autorisées - 200
+  type: http
+  seq: 10
+
+http:
+  method: GET
+  url: "{{base_url}}/api/participants/{{porteur_malus}}/cibles"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("les cibles sont listées", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("à trois joueurs, l'attaquant choisit lui-même", function () {
+          // Au-delà du seuil de six joueurs, les cibles seraient imposées.
+          expect(res.getBody().imposees).to.equal(false);
+        });
+
+        test("ni l'attaquant ni le dernier ne figurent parmi les cibles", function () {
+          // On ne se vise pas soi-même, et le dernier du classement est
+          // protégé : l'enfoncer davantage n'aurait pas d'intérêt.
+          const cibles = res.getBody().cibles.map((cible) => cible.id_participant);
+
+          expect(cibles).to.not.contain(bru.getVar("porteur_malus"));
+          expect(cibles).to.not.contain(bru.getVar("porteur_bonus"));
+        });

@@ -1,0 +1,91 @@
+info:
+  name: 13 Dérouler les manches 2 et 3 - 409
+  type: http
+  seq: 13
+
+http:
+  method: POST
+  url: "{{base_url}}/api/sessions/{{session_partie}}/manches/suivante"
+  headers:
+    - name: Cookie
+      value: "token={{token_partie}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "409"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // Les manches 2 et 3 se déroulent comme la première. Elles sont jouées
+        // ici d'un bloc : leur mécanique est déjà éprouvée par les requêtes
+        // 04 à 12.
+        const base = bru.getEnvVar("base_url");
+        const session = bru.getVar("session_partie");
+        const cookie = { Cookie: `token=${bru.getVar("token_partie")}` };
+        const joueurs = [bru.getVar("alice"), bru.getVar("bob"), bru.getVar("chloe")];
+        const questionsParManche = Number(bru.getEnvVar("questions_par_manche"));
+        const nombreManches = Number(bru.getEnvVar("nombre_manches"));
+
+        for (let manche = 2; manche <= nombreManches; manche++) {
+          for (let ordre = 1; ordre <= questionsParManche; ordre++) {
+            const ouverture = await bru.sendRequest({
+              method: "POST",
+              url: `${base}/api/sessions/${session}/questions`,
+              headers: { "Content-Type": "application/json", ...cookie },
+              data: { numero_manche: manche, ordre: ordre },
+            });
+
+            const idQuestion = ouverture.data.id_question;
+
+            for (let i = 0; i < joueurs.length; i++) {
+              await bru.sendRequest({
+                method: "POST",
+                url: `${base}/api/participants/${joueurs[i]}/reponses`,
+                headers: { "Content-Type": "application/json" },
+                data: { id_question: idQuestion, index_choisi: ((i + manche) % 4) + 1 },
+              });
+            }
+
+            await bru.sendRequest({
+              method: "DELETE",
+              url: `${base}/api/sessions/${session}/questions/courante`,
+              headers: cookie,
+            });
+          }
+
+          await bru.sendRequest({
+            method: "POST",
+            url: `${base}/api/sessions/${session}/manches/courante/cloture`,
+            headers: cookie,
+          });
+
+          // Toujours refermer la fenêtre avant d'enchaîner.
+          await bru.sendRequest({
+            method: "DELETE",
+            url: `${base}/api/sessions/${session}/fenetre-cartes`,
+            headers: cookie,
+          });
+
+          if (manche < nombreManches) {
+            await bru.sendRequest({
+              method: "POST",
+              url: `${base}/api/sessions/${session}/manches/suivante`,
+              headers: cookie,
+            });
+          }
+        }
+
+    - type: tests
+      code: |-
+        test("la dernière manche jouée, on ne va pas plus loin", function () {
+          // Sans cette garde, la manche suivante serait la quatrième, celle
+          // réservée à la mort subite : on l'atteindrait par accident.
+          expect(res.getStatus()).to.equal(409);
+        });
+
+        test("le refus explique la marche à suivre", function () {
+          expect(res.getBody().erreur).to.contain("terminez la partie");
+        });

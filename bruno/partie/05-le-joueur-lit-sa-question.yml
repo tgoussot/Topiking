@@ -1,0 +1,39 @@
+info:
+  name: 05 Alice lit sa question - 200
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{base_url}}/api/participants/{{alice}}/question"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("le joueur reçoit la question, sans jeton", function () {
+          // Aucune authentification : l'identifiant reçu en rejoignant suffit.
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("la bonne réponse ne fuit JAMAIS côté joueur", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("index_bonne_reponse");
+          expect(corps).to.not.contain("explication");
+        });
+
+        test("la question servie est bien celle qui est ouverte", function () {
+          expect(res.getBody().id_question).to.equal(bru.getVar("question_courante"));
+        });
+
+        test("le timer du joueur lui est propre", function () {
+          // Chaque joueur a sa propre durée : ses cartes peuvent l'allonger
+          // ou la raccourcir.
+          expect(res.getBody().duree_timer_ms).to.be.above(0);
+        });

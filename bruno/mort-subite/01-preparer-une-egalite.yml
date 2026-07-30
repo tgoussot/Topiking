@@ -1,0 +1,153 @@
+info:
+  name: 01 Préparer une partie sans aucun point - 200
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{base_url}}/api/sessions/{{session_departage}}/classement"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // Une mort subite exige une égalité parfaite en tête. Or le score
+        // dépend d'un bonus de rapidité calculé en millisecondes : deux
+        // joueurs qui répondent n'auront jamais exactement le même total.
+        // L'égalité se construit donc autrement — personne ne répond, et tout
+        // le monde finit à zéro.
+        const base = bru.getEnvVar("base_url");
+        const email = `departage-${Date.now()}@exemple.fr`;
+        const motDePasse = "MonMotDePasse1!";
+
+        const inscription = await bru.sendRequest({
+          method: "POST",
+          url: `${base}/api/utilisateurs`,
+          headers: { "Content-Type": "application/json" },
+          data: {
+            email: email,
+            nom: "Animateur",
+            mot_de_passe: motDePasse,
+            code_invitation: Number(bru.getEnvVar("code_invitation_themes")),
+          },
+        });
+
+        if (inscription.status !== 201) {
+          throw new Error(`Inscription impossible (${inscription.status}).`);
+        }
+
+        const connexion = await bru.sendRequest({
+          method: "POST",
+          url: `${base}/api/utilisateurs/tokens`,
+          headers: { "Content-Type": "application/json" },
+          data: { email: email, mot_de_passe: motDePasse },
+        });
+
+        const entetes = connexion.headers;
+        const cle = Object.keys(entetes).find((nom) => nom.toLowerCase() === "set-cookie");
+        const brut = Array.isArray(entetes[cle]) ? entetes[cle].join("; ") : String(entetes[cle]);
+        const trouve = brut.match(/token=([^;]+)/);
+
+        if (!trouve) {
+          throw new Error("Aucun cookie token dans la réponse de connexion.");
+        }
+
+        const token = trouve[1];
+        bru.setVar("token_departage", token);
+
+        const cookie = { Cookie: `token=${token}` };
+
+        const session = await bru.sendRequest({
+          method: "POST",
+          url: `${base}/api/sessions`,
+          headers: { "Content-Type": "application/json", ...cookie },
+          data: {
+            id_themes: [
+              Number(bru.getEnvVar("id_theme_1")),
+              Number(bru.getEnvVar("id_theme_2")),
+              Number(bru.getEnvVar("id_theme_3")),
+            ],
+          },
+        });
+
+        bru.setVar("session_departage", session.data.id);
+
+        const finalistes = [];
+
+        for (const pseudo of ["Premier", "Second", "Troisieme"]) {
+          const joueur = await bru.sendRequest({
+            method: "POST",
+            url: `${base}/api/participants`,
+            headers: { "Content-Type": "application/json" },
+            data: { code_acces: session.data.code_acces, pseudo: pseudo },
+          });
+
+          finalistes.push(joueur.data.id);
+        }
+
+        bru.setVar("finaliste_1", finalistes[0]);
+        bru.setVar("finaliste_2", finalistes[1]);
+        bru.setVar("finaliste_3", finalistes[2]);
+
+        await bru.sendRequest({
+          method: "POST",
+          url: `${base}/api/sessions/${session.data.id}/demarrage`,
+          headers: cookie,
+        });
+
+        // Les trois manches sont ouvertes et clôturées sans qu'aucune réponse
+        // ne soit donnée : enregistrerAbsents inscrit tout le monde à zéro.
+        const questionsParManche = Number(bru.getEnvVar("questions_par_manche"));
+        const nombreManches = Number(bru.getEnvVar("nombre_manches"));
+
+        for (let manche = 1; manche <= nombreManches; manche++) {
+          for (let ordre = 1; ordre <= questionsParManche; ordre++) {
+            await bru.sendRequest({
+              method: "POST",
+              url: `${base}/api/sessions/${session.data.id}/questions`,
+              headers: { "Content-Type": "application/json", ...cookie },
+              data: { numero_manche: manche, ordre: ordre },
+            });
+
+            await bru.sendRequest({
+              method: "DELETE",
+              url: `${base}/api/sessions/${session.data.id}/questions/courante`,
+              headers: cookie,
+            });
+          }
+
+          await bru.sendRequest({
+            method: "POST",
+            url: `${base}/api/sessions/${session.data.id}/manches/courante/cloture`,
+            headers: cookie,
+          });
+
+          await bru.sendRequest({
+            method: "DELETE",
+            url: `${base}/api/sessions/${session.data.id}/fenetre-cartes`,
+            headers: cookie,
+          });
+
+          if (manche < nombreManches) {
+            await bru.sendRequest({
+              method: "POST",
+              url: `${base}/api/sessions/${session.data.id}/manches/suivante`,
+              headers: cookie,
+            });
+          }
+        }
+
+    - type: tests
+      code: |-
+        test("les trois joueurs terminent à égalité", function () {
+          expect(res.getStatus()).to.equal(200);
+
+          const points = res.getBody().map((ligne) => ligne.points);
+
+          expect(points).to.eql([0, 0, 0]);
+        });

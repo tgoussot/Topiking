@@ -1,0 +1,53 @@
+info:
+  name: 07 Clôturer la question et voir la correction - 200
+  type: http
+  seq: 7
+
+http:
+  method: DELETE
+  url: "{{base_url}}/api/sessions/{{session_partie}}/questions/courante"
+  headers:
+    - name: Cookie
+      value: "token={{token_partie}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("la question se referme", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("la bonne réponse EST donnée à la clôture", function () {
+          // C'est le moment de la correction, et le seul endroit du parcours
+          // joueur où la solution apparaît : elle ne sort qu'après coup, pour
+          // l'animateur qui l'affiche.
+          const index = res.getBody().index_bonne_reponse;
+
+          expect(index).to.be.at.least(1);
+          expect(index).to.be.at.most(4);
+        });
+
+        test("répondre après la clôture est refusé", async function () {
+          let statut = null;
+
+          try {
+            const tardive = await bru.sendRequest({
+              method: "POST",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("bob")}/reponses`,
+              headers: { "Content-Type": "application/json" },
+              data: { id_question: bru.getVar("question_courante"), index_choisi: 1 },
+            });
+
+            statut = tardive.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(409);
+        });
