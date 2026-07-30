@@ -9,6 +9,8 @@ http:
   headers:
     - name: Content-Type
       value: application/json
+    - name: Cookie
+      value: "token_participant={{jeton_alice}}"
   body:
     type: json
     data: |-
@@ -24,6 +26,16 @@ runtime:
       value: "201"
 
   scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : le pot à cookies de Bruno mémorise le dernier cookie reçu
+        // par domaine et le FUSIONNE dans l'en-tête « Cookie » en lui donnant la
+        // PRIORITÉ sur la valeur déclarée ci-dessus. Sans cette purge, le
+        // « token_participant » du dernier joueur inscrit supplante le « token »
+        // de l'animateur (401) ou le jeton d'un autre joueur (403).
+        // Chaque requête incarne une identité précise : son en-tête doit faire foi.
+        await bru.cookies.jar().deleteCookies(bru.getEnvVar("base_url"));
+
     - type: tests
       code: |-
         test("la réponse est enregistrée", function () {
@@ -51,7 +63,10 @@ runtime:
             const seconde = await bru.sendRequest({
               method: "POST",
               url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("alice")}/reponses`,
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                Cookie: `token_participant=${bru.getVar("jeton_alice")}`,
+              },
               data: { id_question: bru.getVar("question_courante"), index_choisi: 3 },
             });
 
@@ -67,17 +82,47 @@ runtime:
           const bob = await bru.sendRequest({
             method: "POST",
             url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("bob")}/reponses`,
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Cookie: `token_participant=${bru.getVar("jeton_bob")}`,
+            },
             data: { id_question: bru.getVar("question_courante"), index_choisi: 2 },
           });
 
           const chloe = await bru.sendRequest({
             method: "POST",
             url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("chloe")}/reponses`,
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Cookie: `token_participant=${bru.getVar("jeton_chloe")}`,
+            },
             data: { id_question: bru.getVar("question_courante"), index_choisi: 3 },
           });
 
           expect(bob.status).to.equal(201);
           expect(chloe.status).to.equal(201);
+        });
+
+        test("répondre à la place d'un autre est refusé", async function () {
+          // Le jeton d'Alice ne vaut que pour Alice : le middleware compare
+          // le sujet du jeton à l'identifiant visé dans l'URL.
+          let statut = null;
+
+          try {
+            const usurpation = await bru.sendRequest({
+              method: "POST",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("bob")}/reponses`,
+              headers: {
+                "Content-Type": "application/json",
+                Cookie: `token_participant=${bru.getVar("jeton_alice")}`,
+              },
+              data: { id_question: bru.getVar("question_courante"), index_choisi: 4 },
+            });
+
+            statut = usurpation.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(403);
         });

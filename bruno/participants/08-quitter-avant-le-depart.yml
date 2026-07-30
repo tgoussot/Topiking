@@ -6,6 +6,9 @@ info:
 http:
   method: DELETE
   url: "{{base_url}}/api/participants/{{id_bob}}"
+  headers:
+    - name: Cookie
+      value: "token_participant={{token_bob}}"
 
 runtime:
   assertions:
@@ -14,10 +17,58 @@ runtime:
       value: "204"
 
   scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : le pot à cookies de Bruno mémorise le dernier cookie reçu
+        // par domaine et le FUSIONNE dans l'en-tête « Cookie » en lui donnant la
+        // PRIORITÉ sur la valeur déclarée ci-dessus. Sans cette purge, le
+        // « token_participant » du dernier joueur inscrit supplante le « token »
+        // de l'animateur (401) ou le jeton d'un autre joueur (403).
+        // Chaque requête incarne une identité précise : son en-tête doit faire foi.
+        await bru.cookies.jar().deleteCookies(bru.getEnvVar("base_url"));
+
     - type: tests
       code: |-
         test("le joueur peut partir tant que rien n'a commencé", function () {
           expect(res.getStatus()).to.equal(204);
+        });
+
+        test("partir sans jeton est refusé", async function () {
+          // Sans preuve d'identité, n'importe qui pourrait éjecter un joueur.
+          let statut = null;
+
+          try {
+            const anonyme = await bru.sendRequest({
+              method: "DELETE",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("id_alice")}`,
+            });
+
+            statut = anonyme.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(401);
+        });
+
+        test("le jeton d'Alice ne permet pas d'agir sur un autre joueur", async function () {
+          // Le jeton porte l'identifiant de son porteur : le middleware
+          // compare ce sujet à l'identifiant visé dans l'URL.
+          let statut = null;
+
+          try {
+            const usurpation = await bru.sendRequest({
+              method: "GET",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("id_bob")}`,
+              headers: { Cookie: `token_participant=${bru.getVar("token_alice")}` },
+            });
+
+            statut = usurpation.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(403);
         });
 
         test("il ne figure plus dans la liste", async function () {

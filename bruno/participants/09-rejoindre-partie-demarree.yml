@@ -60,6 +60,7 @@ runtime:
             const depart = await bru.sendRequest({
               method: "DELETE",
               url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("id_alice")}`,
+              headers: { Cookie: `token_participant=${bru.getVar("token_alice")}` },
             });
 
             statut = depart.status;

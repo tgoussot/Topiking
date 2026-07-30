@@ -6,6 +6,9 @@ info:
 http:
   method: GET
   url: "{{base_url}}/api/participants/{{porteur_malus}}/cartes"
+  headers:
+    - name: Cookie
+      value: "token_participant={{jeton_porteur_malus}}"
 
 runtime:
   assertions:
@@ -16,6 +19,14 @@ runtime:
   scripts:
     - type: before-request
       code: |-
+        // GARDE-FOU : le pot à cookies de Bruno mémorise le dernier cookie reçu
+        // par domaine et le FUSIONNE dans l'en-tête « Cookie » en lui donnant la
+        // PRIORITÉ sur la valeur déclarée ci-dessus. Sans cette purge, le
+        // « token_participant » du dernier joueur inscrit supplante le « token »
+        // de l'animateur (401) ou le jeton d'un autre joueur (403).
+        // Chaque requête incarne une identité précise : son en-tête doit faire foi.
+        await bru.cookies.jar().deleteCookies(bru.getEnvVar("base_url"));
+
         // Le porteur du malus est le premier du classement de la manche : on
         // le relit plutôt que de le deviner, les scores dépendant du temps de
         // réponse réel.
@@ -24,8 +35,34 @@ runtime:
           url: `${bru.getEnvVar("base_url")}/api/sessions/${bru.getVar("session_partie")}/manches/1/classement`,
         });
 
-        bru.setVar("porteur_malus", classement.data[0].id_participant);
-        bru.setVar("porteur_bonus", classement.data[classement.data.length - 1].id_participant);
+        const idMalus = classement.data[0].id_participant;
+        const idBonus = classement.data[classement.data.length - 1].id_participant;
+
+        bru.setVar("porteur_malus", idMalus);
+        bru.setVar("porteur_bonus", idBonus);
+
+        // Le porteur varie d'une exécution à l'autre : son jeton se retrouve
+        // en rapprochant son identifiant de ceux mémorisés à l'inscription.
+        // Les clés d'objet étant des chaînes, la comparaison est normalisée.
+        const jetons = {
+          [String(bru.getVar("alice"))]: bru.getVar("jeton_alice"),
+          [String(bru.getVar("bob"))]: bru.getVar("jeton_bob"),
+          [String(bru.getVar("chloe"))]: bru.getVar("jeton_chloe"),
+        };
+
+        const jetonMalus = jetons[String(idMalus)];
+        const jetonBonus = jetons[String(idBonus)];
+
+        if (!jetonMalus || !jetonBonus) {
+          throw new Error(
+            `Jeton introuvable pour le porteur ${idMalus} (malus) ou ${idBonus} ` +
+            `(bonus). Joueurs connus : ${Object.keys(jetons).join(", ")}. ` +
+            `Les requêtes 02 à 08 ont-elles bien été jouées ?`
+          );
+        }
+
+        bru.setVar("jeton_porteur_malus", jetonMalus);
+        bru.setVar("jeton_porteur_bonus", jetonBonus);
 
     - type: tests
       code: |-

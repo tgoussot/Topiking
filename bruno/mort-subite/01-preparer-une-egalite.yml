@@ -78,6 +78,7 @@ runtime:
         bru.setVar("session_departage", session.data.id);
 
         const finalistes = [];
+        const jetons = [];
 
         for (const pseudo of ["Premier", "Second", "Troisieme"]) {
           const joueur = await bru.sendRequest({
@@ -87,12 +88,38 @@ runtime:
             data: { code_acces: session.data.code_acces, pseudo: pseudo },
           });
 
+          if (joueur.status !== 201) {
+            throw new Error(`${pseudo} n'a pas pu rejoindre (${joueur.status}).`);
+          }
+
           finalistes.push(joueur.data.id);
+
+          // Le jeton de participant est mémorisé pour la mort subite :
+          // bru.sendRequest ne rejoue pas les cookies d'une requête à l'autre.
+          const entetes = joueur.headers || {};
+          const cle = Object.keys(entetes).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+          const valeur = cle ? entetes[cle] : "";
+          const brut = Array.isArray(valeur) ? valeur.join("; ") : String(valeur);
+          const trouve = brut.match(/token_participant=([^;]+)/);
+
+          if (!trouve) {
+            throw new Error(
+              `Aucun cookie token_participant reçu pour ${pseudo}. ` +
+              `Sans jeton, ses requêtes de départage seront rejetées en 401.`
+            );
+          }
+
+          jetons.push(trouve[1]);
         }
 
         bru.setVar("finaliste_1", finalistes[0]);
         bru.setVar("finaliste_2", finalistes[1]);
         bru.setVar("finaliste_3", finalistes[2]);
+        bru.setVar("jeton_finaliste_1", jetons[0]);
+        bru.setVar("jeton_finaliste_2", jetons[1]);
+        bru.setVar("jeton_finaliste_3", jetons[2]);
 
         await bru.sendRequest({
           method: "POST",

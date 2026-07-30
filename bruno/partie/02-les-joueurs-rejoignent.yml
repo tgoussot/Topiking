@@ -24,36 +24,84 @@ runtime:
       value: "201"
 
   scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : bru.sendRequest a son propre pot à cookies, le jeton de
+        // participant n'y est pas rejoué. Chaque joueur garde donc le sien
+        // dans une variable, reposée à la main sur ses requêtes protégées.
+        //
+        // Bob et Chloé rejoignent AVANT la requête principale, et non dans un
+        // test asynchrone : leurs jetons doivent être posés avant que les
+        // requêtes suivantes de la collection ne s'interpolent.
+        function extraireJeton(entetes) {
+          const cle = Object.keys(entetes || {}).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+          const valeur = cle ? entetes[cle] : "";
+          const brut = Array.isArray(valeur) ? valeur.join("; ") : String(valeur);
+          const trouve = brut.match(/token_participant=([^;]+)/);
+
+          return trouve ? trouve[1] : null;
+        }
+
+        // Trois joueurs : à deux, l'attaquant et le dernier du classement se
+        // confondraient et aucun malus ne serait jouable.
+        const bob = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/participants`,
+          headers: { "Content-Type": "application/json" },
+          data: { code_acces: Number(bru.getVar("code_partie")), pseudo: "Bob" },
+        });
+
+        const chloe = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/participants`,
+          headers: { "Content-Type": "application/json" },
+          data: { code_acces: Number(bru.getVar("code_partie")), pseudo: "Chloe" },
+        });
+
+        if (bob.status !== 201 || chloe.status !== 201) {
+          throw new Error(
+            `Bob (${bob.status}) et Chloé (${chloe.status}) doivent rejoindre la partie.`
+          );
+        }
+
+        bru.setVar("bob", bob.data.id);
+        bru.setVar("chloe", chloe.data.id);
+        bru.setVar("jeton_bob", extraireJeton(bob.headers));
+        bru.setVar("jeton_chloe", extraireJeton(chloe.headers));
+
     - type: tests
       code: |-
+        function extraireJeton(entetes) {
+          const cle = Object.keys(entetes || {}).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+          const valeur = cle ? entetes[cle] : "";
+          const brut = Array.isArray(valeur) ? valeur.join("; ") : String(valeur);
+          const trouve = brut.match(/token_participant=([^;]+)/);
+
+          return trouve ? trouve[1] : null;
+        }
+
         if (res.getStatus() === 201) {
           bru.setVar("alice", res.getBody().id);
+          bru.setVar("jeton_alice", extraireJeton(res.getHeaders()));
         }
 
         test("Alice entre dans la partie", function () {
           expect(res.getStatus()).to.equal(201);
         });
 
-        test("Bob et Chloé la rejoignent", async function () {
-          // Trois joueurs : à deux, l'attaquant et le dernier du classement
-          // se confondraient et aucun malus ne serait jouable.
-          const bob = await bru.sendRequest({
-            method: "POST",
-            url: `${bru.getEnvVar("base_url")}/api/participants`,
-            headers: { "Content-Type": "application/json" },
-            data: { code_acces: Number(bru.getVar("code_partie")), pseudo: "Bob" },
-          });
+        test("Bob et Chloé l'ont rejointe", function () {
+          expect(bru.getVar("bob")).to.be.a("number");
+          expect(bru.getVar("chloe")).to.be.a("number");
+        });
 
-          const chloe = await bru.sendRequest({
-            method: "POST",
-            url: `${bru.getEnvVar("base_url")}/api/participants`,
-            headers: { "Content-Type": "application/json" },
-            data: { code_acces: Number(bru.getVar("code_partie")), pseudo: "Chloe" },
-          });
-
-          bru.setVar("bob", bob.data.id);
-          bru.setVar("chloe", chloe.data.id);
-
-          expect(bob.status).to.equal(201);
-          expect(chloe.status).to.equal(201);
+        test("chaque joueur repart avec son propre jeton", function () {
+          // Sans jeton mémorisé, toutes les requêtes joueur suivantes
+          // partiraient anonymes et seraient rejetées en 401.
+          expect(bru.getVar("jeton_alice")).to.be.a("string");
+          expect(bru.getVar("jeton_bob")).to.be.a("string");
+          expect(bru.getVar("jeton_chloe")).to.be.a("string");
         });

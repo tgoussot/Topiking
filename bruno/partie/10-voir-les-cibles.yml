@@ -6,6 +6,9 @@ info:
 http:
   method: GET
   url: "{{base_url}}/api/participants/{{porteur_malus}}/cibles"
+  headers:
+    - name: Cookie
+      value: "token_participant={{jeton_porteur_malus}}"
 
 runtime:
   assertions:
@@ -14,6 +17,30 @@ runtime:
       value: "200"
 
   scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : le pot à cookies de Bruno mémorise le dernier cookie reçu
+        // par domaine et le FUSIONNE dans l'en-tête « Cookie » en lui donnant la
+        // PRIORITÉ sur la valeur déclarée ci-dessus. Sans cette purge, le
+        // « token_participant » du dernier joueur inscrit supplante le « token »
+        // de l'animateur (401) ou le jeton d'un autre joueur (403).
+        // Chaque requête incarne une identité précise : son en-tête doit faire foi.
+        await bru.cookies.jar().deleteCookies(bru.getEnvVar("base_url"));
+
+        // Le joueur protégé est le dernier du classement GÉNÉRAL : c'est celui
+        // que le service de ciblage écarte. Il ne coïncide pas toujours avec le
+        // dernier de la manche, car les deux classements ne départagent pas les
+        // ex æquo de la même façon — au temps cumulé pour la manche, à
+        // l'identifiant pour le général, qui ignore le temps. À points égaux,
+        // les deux « derniers » diffèrent, d'où un échec intermittent si l'on
+        // se fie au classement de la manche.
+        const general = await bru.sendRequest({
+          method: "GET",
+          url: `${bru.getEnvVar("base_url")}/api/sessions/${bru.getVar("session_partie")}/classement`,
+        });
+
+        bru.setVar("protege_general", general.data[general.data.length - 1].id_participant);
+
     - type: tests
       code: |-
         test("les cibles sont listées", function () {
@@ -31,5 +58,5 @@ runtime:
           const cibles = res.getBody().cibles.map((cible) => cible.id_participant);
 
           expect(cibles).to.not.contain(bru.getVar("porteur_malus"));
-          expect(cibles).to.not.contain(bru.getVar("porteur_bonus"));
+          expect(cibles).to.not.contain(bru.getVar("protege_general"));
         });

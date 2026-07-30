@@ -17,6 +17,16 @@ runtime:
       value: "200"
 
   scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : le pot à cookies de Bruno mémorise le dernier cookie reçu
+        // par domaine et le FUSIONNE dans l'en-tête « Cookie » en lui donnant la
+        // PRIORITÉ sur la valeur déclarée ci-dessus. Sans cette purge, le
+        // « token_participant » du dernier joueur inscrit supplante le « token »
+        // de l'animateur (401) ou le jeton d'un autre joueur (403).
+        // Chaque requête incarne une identité précise : son en-tête doit faire foi.
+        await bru.cookies.jar().deleteCookies(bru.getEnvVar("base_url"));
+
     - type: tests
       code: |-
         test("la partie passe en cours", function () {

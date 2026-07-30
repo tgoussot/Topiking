@@ -18,24 +18,41 @@ http:
       }
 
 runtime:
-  assertions:
-    - expression: res.status
-      operator: eq
-      value: "201"
-    - expression: res.body.id
-      operator: isNumber
-
   scripts:
     - type: tests
       code: |-
-        if (res.getStatus() === 201) {
-          bru.setVar("id_alice", res.getBody().id);
+        function lireTokenParticipant() {
+          const entetes = res.getHeaders();
+          const cle = Object.keys(entetes).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+
+          if (!cle) return null;
+
+          const valeur = entetes[cle];
+          const brut = Array.isArray(valeur) ? valeur.join("; ") : String(valeur);
+          const trouve = brut.match(/token_participant=([^;]+)/);
+
+          return trouve ? trouve[1] : null;
         }
 
-        test("le joueur rejoint sans compte ni jeton", function () {
-          // Aucune authentification côté joueur : le code suffit à entrer,
-          // et l'identifiant reçu tient lieu d'identité pour la suite.
+        if (res.getStatus() === 201) {
+          bru.setVar("id_alice", res.getBody().id);
+          // GARDE-FOU : bru.sendRequest a son propre pot à cookies. Le jeton
+          // est mémorisé ici pour être reposé à la main sur chaque requête
+          // joueur protégée.
+          bru.setVar("token_alice", lireTokenParticipant());
+        }
+
+        test("le joueur rejoint sans compte, mais reçoit un jeton", function () {
+          // Le code d'accès suffit à entrer : aucun compte n'est nécessaire.
+          // En échange, le serveur délivre un jeton de participant qui sert
+          // de preuve d'identité pour toute la suite de la partie.
           expect(res.getStatus()).to.equal(201);
+        });
+
+        test("le serveur délivre le cookie token_participant", function () {
+          expect(lireTokenParticipant()).to.not.equal(null);
         });
 
         test("le pseudo est nettoyé de ses espaces", function () {
@@ -49,3 +66,15 @@ runtime:
         test("le joueur reçoit l'identifiant de sa session", function () {
           expect(res.getBody().id_session).to.equal(bru.getVar("id_session_joueurs"));
         });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.id
+      operator: isNumber
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

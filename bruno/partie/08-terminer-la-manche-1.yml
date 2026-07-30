@@ -19,12 +19,26 @@ runtime:
   scripts:
     - type: before-request
       code: |-
+        // GARDE-FOU : le pot à cookies de Bruno mémorise le dernier cookie reçu
+        // par domaine et le FUSIONNE dans l'en-tête « Cookie » en lui donnant la
+        // PRIORITÉ sur la valeur déclarée ci-dessus. Sans cette purge, le
+        // « token_participant » du dernier joueur inscrit supplante le « token »
+        // de l'animateur (401) ou le jeton d'un autre joueur (403).
+        // Chaque requête incarne une identité précise : son en-tête doit faire foi.
+        await bru.cookies.jar().deleteCookies(bru.getEnvVar("base_url"));
+
         // La question 1 a déjà été jouée. On enchaîne les suivantes de la même
         // manière : ouvrir, faire répondre les trois joueurs, clôturer.
         const base = bru.getEnvVar("base_url");
         const session = bru.getVar("session_partie");
         const cookie = { Cookie: `token=${bru.getVar("token_partie")}` };
-        const joueurs = [bru.getVar("alice"), bru.getVar("bob"), bru.getVar("chloe")];
+        // Chaque joueur répond avec SON jeton : le middleware refuse qu'un
+        // participant réponde à la place d'un autre.
+        const joueurs = [
+          { id: bru.getVar("alice"), jeton: bru.getVar("jeton_alice") },
+          { id: bru.getVar("bob"), jeton: bru.getVar("jeton_bob") },
+          { id: bru.getVar("chloe"), jeton: bru.getVar("jeton_chloe") },
+        ];
         const questionsParManche = Number(bru.getEnvVar("questions_par_manche"));
 
         for (let ordre = 2; ordre <= questionsParManche; ordre++) {
@@ -40,8 +54,11 @@ runtime:
           for (let i = 0; i < joueurs.length; i++) {
             await bru.sendRequest({
               method: "POST",
-              url: `${base}/api/participants/${joueurs[i]}/reponses`,
-              headers: { "Content-Type": "application/json" },
+              url: `${base}/api/participants/${joueurs[i].id}/reponses`,
+              headers: {
+                "Content-Type": "application/json",
+                Cookie: `token_participant=${joueurs[i].jeton}`,
+              },
               data: { id_question: idQuestion, index_choisi: (i % 4) + 1 },
             });
           }

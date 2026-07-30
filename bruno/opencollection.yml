@@ -3,6 +3,22 @@ opencollection: 1.0.0
 info:
   name: bruno
 bundled: false
+# Le pot à cookies de Bruno mémorise le dernier cookie reçu par domaine, puis le
+# FUSIONNE dans l'en-tête « Cookie » de chaque requête EN LUI DONNANT LA PRIORITÉ
+# sur la valeur déclarée. Dès qu'un joueur rejoint la partie, son
+# « token_participant » supplanterait donc le « token » de l'animateur (401) et
+# se substituerait au jeton des autres joueurs (403).
+#
+# Chaque requête ici incarne une identité précise — animateur, porteur du malus,
+# porteur du bonus — et porte le jeton correspondant : c'est cet en-tête qui doit
+# faire foi, jamais l'historique de la session. Les requêtes protégées vident donc
+# le pot dans leur script « before-request » :
+#
+#   await bru.cookies.jar().deleteCookies(bru.getEnvVar("base_url"));
+#
+# Cette purge vaut aussi bien dans l'interface graphique qu'en CLI, sans
+# dépendre du drapeau « --disable-cookies ».
+
 extensions:
   bruno:
     ignore:

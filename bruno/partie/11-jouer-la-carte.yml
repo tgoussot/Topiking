@@ -9,6 +9,8 @@ http:
   headers:
     - name: Content-Type
       value: application/json
+    - name: Cookie
+      value: "token_participant={{jeton_porteur_malus}}"
   body:
     type: json
     data: |-
@@ -26,11 +28,20 @@ runtime:
   scripts:
     - type: before-request
       code: |-
+        // GARDE-FOU : le pot à cookies de Bruno mémorise le dernier cookie reçu
+        // par domaine et le FUSIONNE dans l'en-tête « Cookie » en lui donnant la
+        // PRIORITÉ sur la valeur déclarée ci-dessus. Sans cette purge, le
+        // « token_participant » du dernier joueur inscrit supplante le « token »
+        // de l'animateur (401) ou le jeton d'un autre joueur (403).
+        // Chaque requête incarne une identité précise : son en-tête doit faire foi.
+        await bru.cookies.jar().deleteCookies(bru.getEnvVar("base_url"));
+
         // La cible est relue juste avant de frapper : sa liste dépend du
         // classement, qui varie d'une exécution à l'autre.
         const cibles = await bru.sendRequest({
           method: "GET",
           url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("porteur_malus")}/cibles`,
+          headers: { Cookie: `token_participant=${bru.getVar("jeton_porteur_malus")}` },
         });
 
         bru.setVar("cible_choisie", cibles.data.cibles[0].id_participant);
@@ -60,7 +71,10 @@ runtime:
             const seconde = await bru.sendRequest({
               method: "POST",
               url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("porteur_malus")}/cartes`,
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                Cookie: `token_participant=${bru.getVar("jeton_porteur_malus")}`,
+              },
               data: {
                 id_reception: bru.getVar("carte_a_jouer"),
                 id_cible: bru.getVar("cible_choisie"),
@@ -76,15 +90,20 @@ runtime:
         });
 
         test("un autre joueur ne peut pas jouer cette carte", async function () {
-          // Rien n'authentifie les joueurs : c'est le service qui vérifie
-          // qu'une carte appartient bien à celui qui la joue.
+          // Le porteur du bonus tente de jouer la carte du porteur du malus,
+          // en présentant SON propre jeton : l'URL et le jeton concordent, le
+          // middleware laisse donc passer. C'est le service qui refuse, en
+          // vérifiant que la carte appartient bien à celui qui la joue.
           let statut = null;
 
           try {
             const vol = await bru.sendRequest({
               method: "POST",
               url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("porteur_bonus")}/cartes`,
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                Cookie: `token_participant=${bru.getVar("jeton_porteur_bonus")}`,
+              },
               data: { id_reception: bru.getVar("carte_a_jouer") },
             });
 
@@ -94,4 +113,26 @@ runtime:
           }
 
           expect(statut).to.equal(403);
+        });
+
+        test("sans jeton, la carte ne part pas", async function () {
+          let statut = null;
+
+          try {
+            const anonyme = await bru.sendRequest({
+              method: "POST",
+              url: `${bru.getEnvVar("base_url")}/api/participants/${bru.getVar("porteur_malus")}/cartes`,
+              headers: { "Content-Type": "application/json" },
+              data: {
+                id_reception: bru.getVar("carte_a_jouer"),
+                id_cible: bru.getVar("cible_choisie"),
+              },
+            });
+
+            statut = anonyme.status;
+          } catch (erreur) {
+            statut = erreur.status;
+          }
+
+          expect(statut).to.equal(401);
         });

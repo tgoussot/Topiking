@@ -28,6 +28,16 @@ runtime:
       code: |-
         if (res.getStatus() === 201) {
           bru.setVar("id_bob", res.getBody().id);
+
+          const entetes = res.getHeaders();
+          const cle = Object.keys(entetes).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+          const valeur = cle ? entetes[cle] : "";
+          const brut = Array.isArray(valeur) ? valeur.join("; ") : String(valeur);
+          const trouve = brut.match(/token_participant=([^;]+)/);
+
+          bru.setVar("token_bob", trouve ? trouve[1] : null);
         }
 
         test("Bob rejoint la partie", function () {
