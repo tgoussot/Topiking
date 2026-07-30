@@ -1,0 +1,77 @@
+info:
+  name: 01 Préparer un thème d'accueil - 201
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base_url}}/api/themes"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Cookie
+      value: "token={{token_questions}}"
+  body:
+    type: json
+    data: |-
+      {
+        "libelle": "Thème d'accueil des questions"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+
+  scripts:
+    - type: before-request
+      code: |-
+        const email = `questions-${Date.now()}@exemple.fr`;
+        const motDePasse = "MonMotDePasse1!";
+
+        const inscription = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs`,
+          headers: { "Content-Type": "application/json" },
+          data: {
+            email: email,
+            nom: "Animateur",
+            mot_de_passe: motDePasse,
+            code_invitation: Number(bru.getEnvVar("code_invitation_themes")),
+          },
+        });
+
+        if (inscription.status !== 201) {
+          throw new Error(`Inscription impossible (${inscription.status}).`);
+        }
+
+        const connexion = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs/tokens`,
+          headers: { "Content-Type": "application/json" },
+          data: { email: email, mot_de_passe: motDePasse },
+        });
+
+        const entetes = connexion.headers;
+        const cle = Object.keys(entetes).find((nom) => nom.toLowerCase() === "set-cookie");
+        const brut = Array.isArray(entetes[cle]) ? entetes[cle].join("; ") : String(entetes[cle]);
+        const trouve = brut.match(/token=([^;]+)/);
+
+        if (!trouve) {
+          throw new Error("Aucun cookie token dans la réponse de connexion.");
+        }
+
+        bru.setVar("token_questions", trouve[1]);
+
+    - type: tests
+      code: |-
+        // GARDE-FOU : capture depuis « tests », le CLI Bruno n'exécutant pas
+        // les scripts post-response.
+        if (res.getStatus() === 201) {
+          bru.setVar("id_theme_questions", res.getBody().id);
+        }
+
+        test("le thème d'accueil est créé", function () {
+          expect(res.getStatus()).to.equal(201);
+        });

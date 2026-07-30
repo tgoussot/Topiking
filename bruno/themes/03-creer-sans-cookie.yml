@@ -1,0 +1,40 @@
+info:
+  name: 03 Créer un thème sans cookie - 401
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/api/themes"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "libelle": "Thème sans jeton"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : sans ce nettoyage, Bruno joindrait un token posé par une
+        // requête précédente et la réponse serait un 201, pas le 401 attendu.
+        await bru.cookies.clear();
+
+    - type: tests
+      code: |-
+        test("refuse l'accès sans jeton", function () {
+          expect(res.getStatus()).to.equal(401);
+        });
+
+        test("le message reste laconique", function () {
+          expect(res.getBody().erreur).to.equal("Token invalide");
+        });

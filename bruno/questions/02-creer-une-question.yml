@@ -1,0 +1,56 @@
+info:
+  name: 02 Créer une question - 201
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/api/themes/{{id_theme_questions}}/questions"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Cookie
+      value: "token={{token_questions}}"
+  body:
+    type: json
+    data: |-
+      {
+        "enonce": "Quelle est la capitale de la France ?",
+        "explication": "Paris est la capitale depuis le Xe siècle.",
+        "proposition_1": "Lyon",
+        "proposition_2": "Paris",
+        "proposition_3": "Marseille",
+        "proposition_4": "Lille",
+        "index_bonne_reponse": 2,
+        "duree_s": 20
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.id
+      operator: isNumber
+
+  scripts:
+    - type: tests
+      code: |-
+        if (res.getStatus() === 201) {
+          bru.setVar("id_question_creee", res.getBody().id);
+        }
+
+        test("crée la question avec un 201", function () {
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("la question est rattachée au thème", function () {
+          expect(res.getBody().id_theme).to.equal(bru.getVar("id_theme_questions"));
+        });
+
+        test("les quatre propositions sont enregistrées", function () {
+          const corps = res.getBody();
+
+          expect(corps.proposition_1).to.equal("Lyon");
+          expect(corps.proposition_4).to.equal("Lille");
+        });

@@ -1,0 +1,30 @@
+info:
+  name: 08 Supprimer le thème créé - 204
+  type: http
+  seq: 8
+
+http:
+  method: DELETE
+  url: "{{base_url}}/api/themes/{{id_theme_cree}}"
+  headers:
+    - name: Cookie
+      value: "token={{token_themes}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "204"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("supprime le thème vide", function () {
+          expect(res.getStatus()).to.equal(204);
+        });
+
+        test("204 No Content : aucun corps", function () {
+          const corps = res.getBody();
+
+          expect(corps === undefined || corps === null || corps === "").to.equal(true);
+        });

@@ -1,0 +1,38 @@
+info:
+  name: 06 Désactiver le thème créé - 200
+  type: http
+  seq: 6
+
+http:
+  method: PATCH
+  url: "{{base_url}}/api/themes/{{id_theme_cree}}"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Cookie
+      value: "token={{token_themes}}"
+  body:
+    type: json
+    data: |-
+      {
+        "actif": false
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("désactive le thème", function () {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody().actif).to.equal(false);
+        });
+
+        test("le libellé n'a pas été touché", function () {
+          // Un PATCH ne modifie que ce qu'on lui donne : le reste survit.
+          expect(res.getBody().libelle).to.equal("Thème créé par Bruno");
+        });

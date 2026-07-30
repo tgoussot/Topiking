@@ -1,0 +1,41 @@
+info:
+  name: 04 Créer un thème au libellé trop court - 400
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/api/themes"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Cookie
+      value: "token={{token_themes}}"
+  body:
+    type: json
+    data: |-
+      {
+        "libelle": "A"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("refuse un libellé d'un seul caractère", function () {
+          expect(res.getStatus()).to.equal(400);
+        });
+
+        test("la réponse désigne le champ fautif", function () {
+          // Forme d'erreur posée par le middleware validerBody, commune à
+          // toute l'API.
+          const champs = res.getBody().champs;
+
+          expect(champs).to.be.an("array");
+          expect(champs[0].propriete).to.equal("libelle");
+        });

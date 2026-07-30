@@ -1,0 +1,46 @@
+info:
+  name: 03 Créer une question à l'index invalide - 400
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/api/themes/{{id_theme_questions}}/questions"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Cookie
+      value: "token={{token_questions}}"
+  body:
+    type: json
+    data: |-
+      {
+        "enonce": "Question à l'index impossible ?",
+        "proposition_1": "A",
+        "proposition_2": "B",
+        "proposition_3": "C",
+        "proposition_4": "D",
+        "index_bonne_reponse": 7,
+        "duree_s": 20
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("refuse un index au-delà de 4", function () {
+          // Il n'y a que quatre propositions : un index de 7 ne désignerait
+          // aucune réponse, et la question serait injouable.
+          expect(res.getStatus()).to.equal(400);
+        });
+
+        test("la réponse désigne le champ fautif", function () {
+          const champs = res.getBody().champs;
+
+          expect(champs[0].propriete).to.equal("index_bonne_reponse");
+        });

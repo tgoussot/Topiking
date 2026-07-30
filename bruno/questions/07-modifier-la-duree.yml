@@ -1,0 +1,37 @@
+info:
+  name: 07 Modifier la durée de la question - 200
+  type: http
+  seq: 7
+
+http:
+  method: PATCH
+  url: "{{base_url}}/api/questions/{{id_question_creee}}"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Cookie
+      value: "token={{token_questions}}"
+  body:
+    type: json
+    data: |-
+      {
+        "duree_s": 45
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("modifie la durée", function () {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody().duree_s).to.equal(45);
+        });
+
+        test("l'énoncé n'a pas bougé", function () {
+          expect(res.getBody().enonce).to.equal("Quelle est la capitale de la France ?");
+        });

@@ -1,0 +1,33 @@
+info:
+  name: 05 Lire le thème d'une autre organisation - 403
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{base_url}}/api/themes/{{id_theme_autre_organisation}}"
+  headers:
+    - name: Cookie
+      value: "token={{token_themes}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "403"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("refuse le contenu d'une autre organisation", function () {
+          // L'animateur appartient à l'IUT, le thème 1 au Lycée : la frontière
+          // entre organisations doit tenir même sur une simple lecture.
+          expect(res.getStatus()).to.equal(403);
+        });
+
+        test("aucun contenu du thème ne filtre dans le refus", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("libelle");
+          expect(corps).to.not.contain("Culture");
+        });

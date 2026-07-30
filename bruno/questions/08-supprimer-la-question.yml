@@ -1,0 +1,37 @@
+info:
+  name: 08 Supprimer la question puis son thème - 204
+  type: http
+  seq: 8
+
+http:
+  method: DELETE
+  url: "{{base_url}}/api/questions/{{id_question_creee}}"
+  headers:
+    - name: Cookie
+      value: "token={{token_questions}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "204"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("supprime la question jamais tirée", function () {
+          expect(res.getStatus()).to.equal(204);
+        });
+
+        test("le thème vidé redevient supprimable", async function () {
+          // Le thème refusait la suppression tant qu'il portait une question.
+          // Une fois vide, il s'efface : c'est la garde du contrôleur qui est
+          // vérifiée ici, dans les deux sens.
+          const suppression = await bru.sendRequest({
+            method: "DELETE",
+            url: `${bru.getEnvVar("base_url")}/api/themes/${bru.getVar("id_theme_questions")}`,
+            headers: { Cookie: `token=${bru.getVar("token_questions")}` },
+          });
+
+          expect(suppression.status).to.equal(204);
+        });

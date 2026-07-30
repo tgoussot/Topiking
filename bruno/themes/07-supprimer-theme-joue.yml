@@ -1,0 +1,31 @@
+info:
+  name: 07 Supprimer un thème déjà joué - 409
+  type: http
+  seq: 7
+
+http:
+  method: DELETE
+  url: "{{base_url}}/api/themes/{{id_theme_1}}"
+  headers:
+    - name: Cookie
+      value: "token={{token_themes}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "409"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("refuse la suppression", function () {
+          // Le thème 4 porte des questions et a servi dans les sessions du
+          // seed : l'effacer amputerait des parties passées. Sans cette garde,
+          // la base rejetterait la clé étrangère et l'API répondrait 500.
+          expect(res.getStatus()).to.equal(409);
+        });
+
+        test("le refus s'explique", function () {
+          expect(res.getBody().erreur).to.be.a("string");
+        });

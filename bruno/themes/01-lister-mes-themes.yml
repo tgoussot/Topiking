@@ -1,0 +1,91 @@
+info:
+  name: 01 Lister les thèmes de mon organisation - 200
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{base_url}}/api/themes"
+  headers:
+    - name: Cookie
+      value: "token={{token_themes}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // Un animateur de l'IUT : c'est son organisation qui porte les thèmes
+        // 4, 5 et 8 du seed.
+        const email = `themes-${Date.now()}@exemple.fr`;
+        const motDePasse = "MonMotDePasse1!";
+
+        const inscription = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs`,
+          headers: { "Content-Type": "application/json" },
+          data: {
+            email: email,
+            nom: "Animateur",
+            mot_de_passe: motDePasse,
+            code_invitation: Number(bru.getEnvVar("code_invitation_themes")),
+          },
+        });
+
+        if (inscription.status !== 201) {
+          throw new Error(
+            `Inscription impossible (${inscription.status}). Le seed est-il chargé ?`
+          );
+        }
+
+        const connexion = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs/tokens`,
+          headers: { "Content-Type": "application/json" },
+          data: { email: email, mot_de_passe: motDePasse },
+        });
+
+        // GARDE-FOU : bru.sendRequest a son propre pot à cookies, invisible de
+        // la requête principale. Le token doit être extrait puis reposé à la
+        // main dans l'en-tête Cookie.
+        const entetes = connexion.headers;
+        const cle = Object.keys(entetes).find((nom) => nom.toLowerCase() === "set-cookie");
+        const brut = Array.isArray(entetes[cle]) ? entetes[cle].join("; ") : String(entetes[cle]);
+        const trouve = brut.match(/token=([^;]+)/);
+
+        if (!trouve) {
+          throw new Error("Aucun cookie token dans la réponse de connexion.");
+        }
+
+        bru.setVar("token_themes", trouve[1]);
+
+    - type: tests
+      code: |-
+        test("répond 200 avec un tableau", function () {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody()).to.be.an("array");
+        });
+
+        test("tous les thèmes appartiennent à la même organisation", function () {
+          const themes = res.getBody();
+
+          expect(themes.length).to.be.at.least(1);
+
+          const organisations = themes.map((theme) => theme.id_organisation);
+          const distinctes = organisations.filter((id, rang) => organisations.indexOf(id) === rang);
+
+          // Le cloisonnement entre organisations est la règle de base : jamais
+          // un thème d'une autre entreprise ne doit apparaître ici.
+          expect(distinctes.length).to.equal(1);
+        });
+
+        test("aucune donnée de compte ne transite", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("mot_de_passe");
+          expect(corps).to.not.contain("$argon2");
+        });

@@ -1,0 +1,34 @@
+info:
+  name: 06 Lire une question d'une autre organisation - 403
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{base_url}}/api/questions/1"
+  headers:
+    - name: Cookie
+      value: "token={{token_questions}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "403"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("refuse la question d'une autre organisation", function () {
+          // La question 1 du seed appartient au Lycée, l'animateur à l'IUT.
+          // La garde remonte par le thème : une question n'a pas
+          // d'organisation à elle.
+          expect(res.getStatus()).to.equal(403);
+        });
+
+        test("la solution ne filtre pas dans le refus", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("index_bonne_reponse");
+          expect(corps).to.not.contain("proposition_1");
+        });

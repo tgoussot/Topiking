@@ -1,0 +1,53 @@
+info:
+  name: 02 Créer un thème - 201
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/api/themes"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Cookie
+      value: "token={{token_themes}}"
+  body:
+    type: json
+    data: |-
+      {
+        "libelle": "Thème créé par Bruno",
+        "description": "Créé par la collection de tests."
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.id
+      operator: isNumber
+
+  scripts:
+    - type: tests
+      code: |-
+        // GARDE-FOU : la capture se fait ici et non dans un post-response.
+        // Le CLI Bruno n'exécute pas les scripts post-response, la variable
+        // resterait nulle et les requêtes suivantes partiraient sur une URL
+        // incomplète, donc en 400.
+        if (res.getStatus() === 201) {
+          bru.setVar("id_theme_cree", res.getBody().id);
+        }
+
+        test("crée le thème avec un 201", function () {
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("le thème naît actif", function () {
+          expect(res.getBody().actif).to.equal(true);
+        });
+
+        test("le thème est rattaché à l'organisation du token", function () {
+          // L'organisation n'a jamais été envoyée dans le corps : elle est lue
+          // dans le jeton, ce qui empêche de déposer un thème chez le voisin.
+          expect(res.getBody().id_organisation).to.be.a("number");
+        });

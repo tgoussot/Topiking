@@ -1,0 +1,35 @@
+info:
+  name: 05 Lire la question côté animateur - 200
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{base_url}}/api/questions/{{id_question_creee}}"
+  headers:
+    - name: Cookie
+      value: "token={{token_questions}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("renvoie la question", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("la bonne réponse EST visible ici", function () {
+          // C'est le back-office : l'animateur écrit ses questions, il doit en
+          // voir la solution. Le contraste est avec les routes joueur, où cet
+          // index ne sort jamais — voir le dossier « partie ».
+          expect(res.getBody().index_bonne_reponse).to.equal(2);
+        });
+
+        test("l'explication accompagne la question", function () {
+          expect(res.getBody().explication).to.be.a("string");
+        });
