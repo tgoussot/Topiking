@@ -20,12 +20,14 @@ function fabriquerReponse() {
         status: jest.fn(() => res),
         json: jest.fn(() => res),
         send: jest.fn(() => res),
+        cookie: jest.fn(() => res),
     };
 
     return res as unknown as Response & {
         status: jest.Mock;
         json: jest.Mock;
         send: jest.Mock;
+        cookie: jest.Mock;
     };
 }
 
