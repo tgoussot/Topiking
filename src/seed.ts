@@ -11,8 +11,12 @@ import { Participant } from "./entities/Participant";
 import { ReponseParticipant } from "./entities/ReponseParticipant";
 import { Carte } from "./entities/Carte";
 import { ReceptionCarte } from "./entities/ReceptionCarte";
+import { hacherMotDePasse } from "./services/AuthService";
 
-const hash = (n: number) => n.toString(16).padStart(2, "0").repeat(32).slice(0, 64);
+// Mot de passe commun à tous les comptes du seed : il permet de se connecter
+// réellement à l'API avec ces comptes, sans passer par une inscription.
+// Il respecte les règles de RegisterDto (12 caractères, majuscule, chiffre, symbole).
+export const MOT_DE_PASSE_SEED = "MotDePasse1!";
 
 function at<T>(rows: T[], index: number): T {
     const row = rows[index];
@@ -44,14 +48,30 @@ async function seed() {
 
     // ---------------------------------------------------------------- UTILISATEUR (REGROUPE 1,n — 1,1)
     // orgLycee : 3 utilisateurs, orgIut : 2, orgAcme : 1 → teste la cardinalité 1,n
-    const utilisateurs = await AppDataSource.getRepository(Utilisateur).save([
-        { email: "claire.dubois@vhugo.fr", nom: "Claire Dubois", mot_de_passe: hash(1), id_organisation: orgLycee.id },
-        { email: "marc.leroy@vhugo.fr", nom: "Marc Leroy", mot_de_passe: hash(2), id_organisation: orgLycee.id },
-        { email: "sonia.bertrand@vhugo.fr", nom: "Sonia Bertrand", mot_de_passe: hash(3), id_organisation: orgLycee.id },
-        { email: "hugo.martin@iut-lyon.fr", nom: "Hugo Martin", mot_de_passe: hash(4), id_organisation: orgIut.id },
-        { email: "nadia.chen@iut-lyon.fr", nom: "Nadia Chen", mot_de_passe: hash(5), id_organisation: orgIut.id },
-        { email: "paul.riviere@acme.io", nom: "Paul Rivière", mot_de_passe: hash(6), id_organisation: orgAcme.id },
-    ]);
+    // Le hachage passe par AuthService, comme à l'inscription : ces comptes
+    // peuvent donc se connecter pour de vrai avec MOT_DE_PASSE_SEED.
+    // Un hachage par compte, pour que chacun ait son propre sel comme en production.
+    const comptes = [
+        { email: "claire.dubois@vhugo.fr", nom: "Claire Dubois", id_organisation: orgLycee.id },
+        { email: "marc.leroy@vhugo.fr", nom: "Marc Leroy", id_organisation: orgLycee.id },
+        { email: "sonia.bertrand@vhugo.fr", nom: "Sonia Bertrand", id_organisation: orgLycee.id },
+        { email: "hugo.martin@iut-lyon.fr", nom: "Hugo Martin", id_organisation: orgIut.id },
+        { email: "nadia.chen@iut-lyon.fr", nom: "Nadia Chen", id_organisation: orgIut.id },
+        { email: "paul.riviere@acme.io", nom: "Paul Rivière", id_organisation: orgAcme.id },
+    ];
+
+    const aHacher = [];
+
+    for (const compte of comptes) {
+        aHacher.push({
+            email: compte.email,
+            nom: compte.nom,
+            id_organisation: compte.id_organisation,
+            mot_de_passe: await hacherMotDePasse(MOT_DE_PASSE_SEED),
+        });
+    }
+
+    const utilisateurs = await AppDataSource.getRepository(Utilisateur).save(aHacher);
     const uClaire = at(utilisateurs, 0);
     const uMarc = at(utilisateurs, 1);
     const uHugo = at(utilisateurs, 3);
@@ -66,6 +86,16 @@ async function seed() {
         { libelle: "Algorithmique", description: "Complexité, tris, structures", actif: true, id_organisation: orgIut.id },
         { libelle: "Réseaux", description: "Modèle OSI, TCP/IP", actif: true, id_organisation: orgIut.id },
         { libelle: "Sécurité au travail", description: "Bonnes pratiques", actif: true, id_organisation: orgAcme.id },
+
+        // --- Thèmes de réserve ---
+        // Ajoutés à la fin pour ne décaler aucun index at() ci-dessous.
+        // Une partie compte NOMBRE_MANCHES manches sur des thèmes distincts : sans
+        // ces thèmes, aucune organisation n'aurait de quoi créer une session
+        // (Lycée : 2 actifs + Géographie vide, IUT : 2 actifs, Acme : 1).
+        { libelle: "Sciences", description: "Physique, chimie, biologie", actif: true, id_organisation: orgLycee.id },
+        { libelle: "Bases de données", description: "SQL, modélisation, transactions", actif: true, id_organisation: orgIut.id },
+        { libelle: "Droit du travail", description: "Contrats, congés, représentation", actif: true, id_organisation: orgAcme.id },
+        { libelle: "Premiers secours", description: "Gestes qui sauvent", actif: true, id_organisation: orgAcme.id },
     ]);
     const thCulture = at(themes, 0);
     const thHistoire = at(themes, 1);
@@ -73,8 +103,15 @@ async function seed() {
     const thAlgo = at(themes, 3);
     const thReseaux = at(themes, 4);
     const thSecu = at(themes, 5);
+    const thSciences = at(themes, 6);
+    const thBdd = at(themes, 7);
+    const thDroit = at(themes, 8);
+    const thSecours = at(themes, 9);
     // Géographie (index 2) reste sans question → teste CONTIENT côté 0
     // Sécurité (index 5) n'est rattaché à aucune manche → teste PORTE SUR côté 0
+    // Droit du travail et Premiers secours (index 8 et 9) complètent Acme, qui
+    // n'anime aucune session : ils donnent à cette organisation les trois thèmes
+    // actifs nécessaires pour créer une partie via l'API.
 
     // ---------------------------------------------------------------- QUESTION (CONTIENT 1,n — 1,1)
     const q = (
@@ -143,6 +180,39 @@ async function seed() {
         q(thReseaux, "Quelle couche OSI gère le routage ?", ["Liaison", "Réseau", "Transport", "Session"], 2, 20, "La couche 3, réseau."),
         q(thReseaux, "Combien de bits dans une adresse IPv4 ?", ["16", "32", "64", "128"], 2, 15, null),
         q(thReseaux, "À quoi sert le protocole ARP ?", ["Résoudre une IP en adresse MAC", "Chiffrer les échanges", "Attribuer une IP", "Router les paquets"], 1, 25, null),
+
+        // --- Questions des thèmes de réserve ---
+        // Cinq par thème : une manche en tire QUESTIONS_PAR_MANCHE, il reste donc
+        // de quoi varier d'une partie à l'autre.
+        // Sécurité au travail n'avait qu'une question : trop peu pour porter une manche.
+        q(thSecu, "Tous les combien un extincteur doit-il être vérifié ?", ["Tous les 6 mois", "Tous les ans", "Tous les 2 ans", "Tous les 5 ans"], 2, 20, "Une vérification annuelle par un professionnel."),
+        q(thSecu, "Que faire en priorité devant un départ de feu ?", ["Prendre des photos", "Donner l'alerte", "Ouvrir les fenêtres", "Chercher ses affaires"], 2, 15, null),
+        q(thSecu, "Quelle est la charge maximale recommandée pour un port manuel occasionnel ?", ["15 kg", "25 kg", "40 kg", "55 kg"], 2, 25, "25 kg pour un homme, 12,5 kg pour une femme."),
+        q(thSecu, "Que signale un panneau triangulaire à fond jaune ?", ["Une obligation", "Une interdiction", "Un danger", "Un secours"], 3, 15, null),
+
+        q(thSciences, "Quel est le symbole chimique de l'or ?", ["Ag", "Au", "Fe", "Or"], 2, 15, "Au, du latin aurum."),
+        q(thSciences, "Combien de chromosomes compte l'être humain ?", ["23", "42", "46", "48"], 3, 20, "23 paires, soit 46 chromosomes."),
+        q(thSciences, "Quelle est la vitesse de la lumière dans le vide ?", ["300 000 km/h", "300 000 km/s", "150 000 km/s", "3 000 km/s"], 2, 20, null),
+        q(thSciences, "Quel gaz les plantes absorbent-elles pour la photosynthèse ?", ["Oxygène", "Azote", "Dioxyde de carbone", "Hydrogène"], 3, 15, null),
+        q(thSciences, "Quelle planète est la plus grande du système solaire ?", ["Saturne", "Jupiter", "Neptune", "Uranus"], 2, 15, "Jupiter fait plus de 11 fois le diamètre terrestre."),
+
+        q(thBdd, "Que signifie SQL ?", ["Simple Query Language", "Structured Query Language", "Sequential Query Logic", "System Query Layer"], 2, 20, null),
+        q(thBdd, "Quelle commande supprime une table entière ?", ["DELETE TABLE", "REMOVE TABLE", "DROP TABLE", "ERASE TABLE"], 3, 15, "DELETE vide la table, DROP la supprime."),
+        q(thBdd, "Que garantit une clé primaire ?", ["La rapidité des jointures", "L'unicité de chaque ligne", "Le tri automatique", "La compression"], 2, 20, null),
+        q(thBdd, "Que signifie l'acronyme ACID ?", ["Atomicité, Cohérence, Isolation, Durabilité", "Accès, Contrôle, Index, Données", "Ajout, Copie, Insertion, Destruction", "Analyse, Calcul, Index, Décision"], 1, 30, "Les quatre propriétés d'une transaction."),
+        q(thBdd, "Quelle jointure conserve toutes les lignes de la table de gauche ?", ["INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "CROSS JOIN"], 2, 25, null),
+
+        q(thDroit, "Quelle est la durée légale du travail hebdomadaire en France ?", ["32 heures", "35 heures", "37 heures", "39 heures"], 2, 15, null),
+        q(thDroit, "Combien de jours de congés payés par mois travaillé ?", ["1,5 jour", "2 jours", "2,5 jours", "3 jours"], 3, 20, "Soit 30 jours ouvrables par an."),
+        q(thDroit, "Que signifie CDI ?", ["Contrat à Durée Indéterminée", "Contrat de Droit Interne", "Convention de l'Industrie", "Contrat Défini Individuel"], 1, 15, null),
+        q(thDroit, "À partir de combien de salariés un CSE est-il obligatoire ?", ["5", "11", "20", "50"], 2, 25, "Le comité social et économique dès 11 salariés."),
+        q(thDroit, "Quelle est la durée maximale d'une période d'essai pour un cadre en CDI ?", ["1 mois", "2 mois", "4 mois", "6 mois"], 3, 25, "4 mois, renouvelables une fois."),
+
+        q(thSecours, "Quel numéro appeler pour les urgences médicales en France ?", ["15", "17", "18", "112"], 1, 15, "Le 15 pour le SAMU, le 112 partout en Europe."),
+        q(thSecours, "Quelle est la fréquence des compressions lors d'un massage cardiaque ?", ["60 par minute", "100 par minute", "150 par minute", "200 par minute"], 2, 20, "Entre 100 et 120 compressions par minute."),
+        q(thSecours, "Que faire face à une brûlure légère ?", ["Percer la cloque", "Appliquer du beurre", "Refroidir à l'eau tempérée", "Frotter avec un linge"], 3, 20, null),
+        q(thSecours, "Quelle position adopter pour une victime inconsciente qui respire ?", ["Sur le dos", "Assise", "Position latérale de sécurité", "Debout"], 3, 20, null),
+        q(thSecours, "Que signifie l'acronyme DAE ?", ["Défibrillateur Automatisé Externe", "Dispositif d'Alerte d'Urgence", "Détecteur Automatique d'Étouffement", "Défibrillateur d'Assistance Électrique"], 1, 20, null),
     ]);
     const qCult1 = at(questions, 0);
     const qCult2 = at(questions, 1);
@@ -228,14 +298,16 @@ async function seed() {
         { id_session: sTerminee.id, id_theme: thCulture.id, numero_manche: 1 },
         { id_session: sTerminee.id, id_theme: thHistoire.id, numero_manche: 2 },
         { id_session: sTerminee.id, id_theme: thGeo.id, numero_manche: 3 },
-        // Session en cours : 2 manches
+        // Session en cours : 3 manches, la troisième pas encore jouée
         { id_session: sEnCours.id, id_theme: thHistoire.id, numero_manche: 1 },
         { id_session: sEnCours.id, id_theme: thCulture.id, numero_manche: 2 },
+        { id_session: sEnCours.id, id_theme: thSciences.id, numero_manche: 3 },
         // Session en attente : 1 manche prévue (session sans participant mais avec un thème)
         { id_session: sEnAttente.id, id_theme: thCulture.id, numero_manche: 1 },
         // Sessions IUT
         { id_session: sIutTerminee.id, id_theme: thAlgo.id, numero_manche: 1 },
         { id_session: sIutTerminee.id, id_theme: thReseaux.id, numero_manche: 2 },
+        { id_session: sIutTerminee.id, id_theme: thBdd.id, numero_manche: 3 },
         { id_session: sIutEnCours.id, id_theme: thAlgo.id, numero_manche: 1 },
     ]);
 
@@ -367,6 +439,24 @@ async function seed() {
     ]) {
         const count = await AppDataSource.getRepository(entity).count();
         console.log(`${entity.name.padEnd(20)} ${count}`);
+    }
+
+    // Repères pour les tests manuels (Bruno) : de quoi se connecter et créer
+    // une session sans avoir à interroger la base.
+    console.log(`\nMot de passe de tous les comptes : ${MOT_DE_PASSE_SEED}`);
+    console.log("\nOrganisations et thèmes actifs utilisables pour créer une session :");
+
+    for (const organisation of organisations) {
+        const actifs = themes.filter(
+            (theme) => theme.id_organisation === organisation.id && theme.actif === true
+        );
+
+        const details = actifs.map((theme) => `${theme.id} ${theme.libelle}`).join(", ");
+
+        console.log(
+            `  ${organisation.nom.padEnd(24)} code ${organisation.code_invitation} — ` +
+            `thèmes actifs : ${details}`
+        );
     }
 
     await AppDataSource.destroy();
