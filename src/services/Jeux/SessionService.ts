@@ -1,12 +1,12 @@
 import { In, EntityManager } from "typeorm";
-import { AppDataSource } from "../data-source";
-import { Session } from "../entities/Session";
-import { SessionTheme } from "../entities/SessionTheme";
-import { SessionQuestion } from "../entities/SessionQuestion";
-import { Theme } from "../entities/Theme";
-import { Question } from "../entities/Question";
-import { Participant } from "../entities/Participant";
-import { ReceptionCarte } from "../entities/ReceptionCarte";
+import { AppDataSource } from "../../data-source";
+import { Session } from "../../entities/Session";
+import { SessionTheme } from "../../entities/SessionTheme";
+import { SessionQuestion } from "../../entities/SessionQuestion";
+import { Theme } from "../../entities/Theme";
+import { Question } from "../../entities/Question";
+import { Participant } from "../../entities/Participant";
+import { ReceptionCarte } from "../../entities/ReceptionCarte";
 import {
     NOMBRE_MANCHES,
     QUESTIONS_PAR_MANCHE,
@@ -14,7 +14,7 @@ import {
     CODE_ACCES_MAXIMUM,
     TENTATIVES_CODE_ACCES,
     FENETRE_CARTES_S,
-} from "../config";
+} from "../../config/config";
 
 const STATUTS_ACTIFS = ["en_attente", "en_cours"];
 const PARTICIPANTS_MINIMUM = 2;

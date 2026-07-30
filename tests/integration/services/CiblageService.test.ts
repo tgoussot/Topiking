@@ -1,5 +1,5 @@
 import { describe, it, expect, jest } from "@jest/globals";
-import { classementGeneral } from "../../../src/services/ClassementService";
+import { classementGeneral } from "../../../src/services/Jeux/ClassementService";
 import {
     dejaToucheDansLaManche,
     ciblesEligibles,
@@ -9,11 +9,11 @@ import {
     jouerBonus,
     jouerMalus,
     appliquerMalusAPlusieurs,
-} from "../../../src/services/CiblageService";
+} from "../../../src/services/Jeux/CiblageService";
 import { Participant } from "../../../src/entities/Participant";
 import { ReceptionCarte } from "../../../src/entities/ReceptionCarte";
 import { Session } from "../../../src/entities/Session";
-import { CIBLES_MULTIPLES } from "../../../src/config";
+import { CIBLES_MULTIPLES } from "../../../src/config/config";
 import {
     creerContexteMinimal,
     creerSession,

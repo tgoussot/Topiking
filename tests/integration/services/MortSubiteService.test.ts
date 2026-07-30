@@ -8,7 +8,7 @@ import {
     repondreMortSubite,
     vainqueurMortSubite,
     cloturerMortSubite,
-} from "../../../src/services/MortSubiteService";
+} from "../../../src/services/Jeux/MortSubiteService";
 import { Session } from "../../../src/entities/Session";
 import { Question } from "../../../src/entities/Question";
 import { SessionQuestion } from "../../../src/entities/SessionQuestion";

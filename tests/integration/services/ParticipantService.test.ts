@@ -8,7 +8,7 @@ import {
     compter,
     quitter,
     ajouterPoints,
-} from "../../../src/services/ParticipantService";
+} from "../../../src/services/Jeux/ParticipantService";
 import { Participant } from "../../../src/entities/Participant";
 import {
     creerContexteMinimal,

@@ -1,5 +1,5 @@
-import { Participant } from "../entities/Participant";
-import { ReponseParticipant } from "../entities/ReponseParticipant";
+import { Participant } from "../../entities/Participant";
+import { ReponseParticipant } from "../../entities/ReponseParticipant";
 import { questionsDeLaManche } from "./SessionService";
 
 export type ScoreParticipant = {

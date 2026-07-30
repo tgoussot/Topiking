@@ -1,7 +1,7 @@
-import { Participant } from "../entities/Participant";
-import { Session } from "../entities/Session";
+import { Participant } from "../../entities/Participant";
+import { Session } from "../../entities/Session";
 import { trouverParCode } from "./SessionService";
-import { PSEUDO_LONGUEUR_MINIMUM, PSEUDO_LONGUEUR_MAXIMUM } from "../config";
+import { PSEUDO_LONGUEUR_MINIMUM, PSEUDO_LONGUEUR_MAXIMUM } from "../../config/config";
 
 
 export function nettoyerPseudo(pseudo: string): string {

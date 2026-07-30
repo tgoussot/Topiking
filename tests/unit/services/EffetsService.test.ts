@@ -5,7 +5,7 @@ import {
     choisirMauvaiseProposition,
     appliquerDureeTimer,
     ordreDesPropositions,
-} from "../../../src/services/EffetsService";
+} from "../../../src/services/Jeux/EffetsService";
 import { Question } from "../../../src/entities/Question";
 
 // Seuls index_bonne_reponse et duree_s sont lus

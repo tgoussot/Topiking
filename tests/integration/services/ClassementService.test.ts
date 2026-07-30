@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@jest/globals";
-import { classementGeneral, classementDeLaManche } from "../../../src/services/ClassementService";
+import { classementGeneral, classementDeLaManche } from "../../../src/services/Jeux/ClassementService";
 import { Session } from "../../../src/entities/Session";
 import { Participant } from "../../../src/entities/Participant";
 import {

@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, afterEach } from "@jest/globals";
-import { melangerQuestions } from "../../../src/services/SessionService";
+import { melangerQuestions } from "../../../src/services/Jeux/SessionService";
 import { Question } from "../../../src/entities/Question";
 
 // melangerQuestions est la seule fonction pure de SessionService :

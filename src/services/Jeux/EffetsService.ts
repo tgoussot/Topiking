@@ -1,5 +1,5 @@
-import { ReceptionCarte } from "../entities/ReceptionCarte";
-import { Question } from "../entities/Question";
+import { ReceptionCarte } from "../../entities/ReceptionCarte";
+import { Question } from "../../entities/Question";
 
 export type EffetsJoueur = {
     // carte Élan.

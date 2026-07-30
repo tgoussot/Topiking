@@ -7,7 +7,7 @@ import {
     effetsNeutres,
     grainePour,
     choisirMauvaiseProposition,
-} from "../../../src/services/EffetsService";
+} from "../../../src/services/Jeux/EffetsService";
 import { Question } from "../../../src/entities/Question";
 import { Participant } from "../../../src/entities/Participant";
 import {

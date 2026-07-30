@@ -1,5 +1,5 @@
-import { Carte } from "../entities/Carte";
-import { ReceptionCarte } from "../entities/ReceptionCarte";
+import { Carte } from "../../entities/Carte";
+import { ReceptionCarte } from "../../entities/ReceptionCarte";
 import { classementDeLaManche, premier, dernier, ScoreParticipant } from "./ClassementService";
 
 export type DistributionManche = {

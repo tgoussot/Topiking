@@ -1,7 +1,7 @@
-import { Session } from "../entities/Session";
-import { Question } from "../entities/Question";
-import { Participant } from "../entities/Participant";
-import { ReponseParticipant } from "../entities/ReponseParticipant";
+import { Session } from "../../entities/Session";
+import { Question } from "../../entities/Question";
+import { Participant } from "../../entities/Participant";
+import { ReponseParticipant } from "../../entities/ReponseParticipant";
 import { questionsDeLaManche, ouvrirFenetreCartes, fenetreCartesOuverte } from "./SessionService";
 import { distribuerFinManche, DistributionManche } from "./DistributionCarteService";
 import { calculerPoints } from "./ScoringService";

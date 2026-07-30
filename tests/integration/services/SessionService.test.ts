@@ -11,7 +11,7 @@ import {
     terminer,
     annuler,
     expirerCartesNonJouees,
-} from "../../../src/services/SessionService";
+} from "../../../src/services/Jeux/SessionService";
 import { Session } from "../../../src/entities/Session";
 import { SessionTheme } from "../../../src/entities/SessionTheme";
 import { SessionQuestion } from "../../../src/entities/SessionQuestion";
@@ -25,7 +25,7 @@ import {
     CODE_ACCES_MAXIMUM,
     TENTATIVES_CODE_ACCES,
     FENETRE_CARTES_S,
-} from "../../../src/config";
+} from "../../../src/config/config";
 import {
     creerContexteMinimal,
     creerOrganisation,

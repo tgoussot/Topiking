@@ -5,7 +5,7 @@ import {
     attribuerCarte,
     distribuerFinManche,
     cartesEnMain,
-} from "../../../src/services/DistributionCarteService";
+} from "../../../src/services/Jeux/DistributionCarteService";
 import { ReceptionCarte } from "../../../src/entities/ReceptionCarte";
 import {
     creerContexteMinimal,

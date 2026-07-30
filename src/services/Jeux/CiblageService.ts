@@ -1,9 +1,9 @@
-import { Participant } from "../entities/Participant";
-import { ReceptionCarte } from "../entities/ReceptionCarte";
-import { Session } from "../entities/Session";
+import { Participant } from "../../entities/Participant";
+import { ReceptionCarte } from "../../entities/ReceptionCarte";
+import { Session } from "../../entities/Session";
 import { classementGeneral, dernier, ScoreParticipant } from "./ClassementService";
 import { fenetreCartesOuverte } from "./SessionService";
-import { SEUIL_CIBLAGE_MULTIPLE, CIBLES_MULTIPLES } from "../config";
+import { SEUIL_CIBLAGE_MULTIPLE, CIBLES_MULTIPLES } from "../../config/config";
 
 
 export async function dejaToucheDansLaManche(idCible: number, numeroManche: number): Promise<boolean> {

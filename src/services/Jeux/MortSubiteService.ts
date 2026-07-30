@@ -1,13 +1,13 @@
 import { Not, In } from "typeorm";
-import { Session } from "../entities/Session";
-import { Question } from "../entities/Question";
-import { Theme } from "../entities/Theme";
-import { Participant } from "../entities/Participant";
-import { SessionQuestion } from "../entities/SessionQuestion";
-import { ReponseParticipant } from "../entities/ReponseParticipant";
+import { Session } from "../../entities/Session";
+import { Question } from "../../entities/Question";
+import { Theme } from "../../entities/Theme";
+import { Participant } from "../../entities/Participant";
+import { SessionQuestion } from "../../entities/SessionQuestion";
+import { ReponseParticipant } from "../../entities/ReponseParticipant";
 import { classementGeneral, exAequoEnTete, ScoreParticipant } from "./ClassementService";
 import { melangerQuestions } from "./SessionService";
-import { NOMBRE_MANCHES } from "../config";
+import { NOMBRE_MANCHES } from "../../config/config";
 
 export const MANCHE_MORT_SUBITE = NOMBRE_MANCHES + 1;
 

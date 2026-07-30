@@ -3,7 +3,7 @@ import {
     calculerBonusRapidite,
     calculerPoints,
     totaliserPoints,
-} from "../../../src/services/ScoringService";
+} from "../../../src/services/Jeux/ScoringService";
 
 // Constantes du service, redéclarées ici volontairement : si quelqu'un change
 // le barème dans le service, ces tests doivent échouer et non s'adapter.

@@ -12,7 +12,7 @@ import {
     mancheTerminee,
     cloturerManche,
     passerAMancheSuivante,
-} from "../../../src/services/QuestionRunnerService";
+} from "../../../src/services/Jeux/QuestionRunnerService";
 import { Session } from "../../../src/entities/Session";
 import { Question } from "../../../src/entities/Question";
 import { Participant } from "../../../src/entities/Participant";

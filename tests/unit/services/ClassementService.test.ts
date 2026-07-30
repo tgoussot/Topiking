@@ -6,7 +6,7 @@ import {
     dernier,
     exAequoEnTete,
     type ScoreParticipant,
-} from "../../../src/services/ClassementService";
+} from "../../../src/services/Jeux/ClassementService";
 
 function score(
     idParticipant: number,
