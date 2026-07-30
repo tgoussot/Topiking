@@ -8,7 +8,8 @@ import {ThemesRouteur} from "./routes/ThemesRoute";
 import {QuestionsRouteur} from "./routes/QuestionsRoute";
 import {CartesRouteur} from "./routes/CartesRoute";
 import cookieParser = require("cookie-parser");
-
+import {createServer} from "node:http";
+import {GestionWebSocket} from "./websocket/ServeurSocket";
 
 
 const port = process.env.PORT || 3301;
@@ -34,7 +35,9 @@ async function main() {
         res.status(404).json({ message: "not found" });
     });
 
-    app.listen(port, () => {
+    const httpServer = createServer(app);
+    GestionWebSocket(httpServer);
+    httpServer.listen(port, () => {
         console.log(`🚀 Server started on port ${port}`);
     });
 }
