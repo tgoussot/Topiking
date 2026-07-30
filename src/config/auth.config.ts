@@ -7,3 +7,4 @@ if (!secret){
 
 export const JWT_SECRET = secret;
 export const JWT_EXPIRY = "15m"
+export const JWT_EXPIRY_PARTICIPANT = "4h"

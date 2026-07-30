@@ -1,7 +1,8 @@
 import argon2 from "argon2";
 import {Utilisateur} from "../entities/Utilisateur";
 import jwt from "jsonwebtoken";
-import {JWT_EXPIRY, JWT_SECRET} from "../config/auth.config";
+import {JWT_EXPIRY, JWT_EXPIRY_PARTICIPANT, JWT_SECRET} from "../config/auth.config";
+import {Participant} from "../entities/Participant";
 
 // + info : cat node_modules/argon2/argon2.d.cts
 export async function hacherMotDePasse(motDePasse:string): Promise<string>{
@@ -25,5 +26,31 @@ export function genererToken(utilisateur:Utilisateur): string{
     }
     // TODO : Même chose ici
     const token = jwt.sign(payload, JWT_SECRET, {expiresIn: JWT_EXPIRY})
+    return token
+}
+
+export async function authentifierParticipant(token: string): Promise<Participant | null>{
+    let payload: jwt.JwtPayload;
+    try{
+        payload = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
+    } catch {
+        return null;
+    }
+
+    if(payload.role !== "participant"){
+        return null;
+    }
+
+    return await Participant.findOneBy({id:Number(payload.sub)});
+}
+
+export function genererTokenParticipant(participant:Participant): string{
+    const payload = {
+        "sub":participant.id,
+        "session":participant.id_session,
+        "role": "participant"
+
+    }
+    const token = jwt.sign(payload, JWT_SECRET, {expiresIn: JWT_EXPIRY_PARTICIPANT})
     return token
 }
