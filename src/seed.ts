@@ -34,9 +34,9 @@ async function seed() {
 
     // ---------------------------------------------------------------- ORGANISATION
     const organisations = await AppDataSource.getRepository(Organisation).save([
-        { nom: "Lycée Victor Hugo", slug: "lycee-victor-hugo" },
-        { nom: "IUT Informatique Lyon", slug: "iut-info-lyon" },
-        { nom: "Acme Formation", slug: "acme-formation" },
+        { nom: "Lycée Victor Hugo", slug: "lycee-victor-hugo",code_invitation: 100001 },
+        { nom: "IUT Informatique Lyon", slug: "iut-info-lyon",code_invitation: 100002 },
+        { nom: "Acme Formation", slug: "acme-formation", code_invitation:100003 },
     ]);
     const orgLycee = at(organisations, 0);
     const orgIut = at(organisations, 1);

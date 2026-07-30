@@ -10,8 +10,7 @@ export class Session extends BaseEntity {
     @PrimaryGeneratedColumn()
     id!: number
 
-    // Code à 6 chiffres saisi par les joueurs pour rejoindre la partie.
-    // Toujours tiré entre 100000 et 999999 pour ne jamais commencer par un zéro.
+
     @Column()
     @IsInt()
     code_acces!: number

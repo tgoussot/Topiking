@@ -9,5 +9,5 @@ export const AppDataSource = new DataSource({
   host: process.env.DB_HOST || "db",
   synchronize: true,
   logging: true,
-  entities: ["src/entities/**/*.{ts,js}"],
+  entities: ["src/entities/**/*.{ts,js}"]
 });

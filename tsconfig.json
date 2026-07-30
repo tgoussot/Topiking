@@ -14,7 +14,8 @@
     "emitDecoratorMetadata": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "strict": true
     //"typeRoots": ["./src"]
   },
   // Le build ne compile que src/. Les tests sont couverts par tsconfig.test.json.

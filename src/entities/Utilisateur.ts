@@ -2,6 +2,7 @@ import {BaseEntity, Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColum
 import {IsEmail, IsHash, IsInt} from "class-validator";
 import {Organisation} from "./Organisation";
 import {Session} from "./Session";
+import {Exclude} from "class-transformer";
 
 @Entity()
 export class Utilisateur extends BaseEntity {
@@ -16,7 +17,7 @@ export class Utilisateur extends BaseEntity {
     nom!: string
 
     @Column()
-    @IsHash("sha256")
+    @Exclude() // abs req
     mot_de_passe!: string
 
     // Relation REGROUPE : 1,n (Organisation) — 1,1 (Utilisateur)

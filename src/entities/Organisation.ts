@@ -1,5 +1,5 @@
 import {BaseEntity, Column, Entity, OneToMany, PrimaryGeneratedColumn} from "typeorm";
-import {Length} from "class-validator";
+import {IsInt, Length} from "class-validator";
 import {Utilisateur} from "./Utilisateur";
 import {Theme} from "./Theme";
 
@@ -14,6 +14,13 @@ export class Organisation extends BaseEntity {
 
     @Column({ unique: true})
     slug!: string
+
+    @Column({ unique : true})
+    @IsInt()
+    code_invitation!: number
+
+
+
 
     // Relation REGROUPE : 1,n (Organisation) — 1,1 (Utilisateur)
     // Une organisation regroupe plusieurs utilisateurs, un utilisateur appartient à une seule organisation

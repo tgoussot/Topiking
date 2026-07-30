@@ -1,6 +1,8 @@
 import "reflect-metadata";
-import express from "express";
+import express, {json} from "express";
 import { AppDataSource } from "./data-source";
+import {UtilisateursRouteur} from "./routes/UtilisateursRoute";
+import cookieParser = require("cookie-parser");
 
 
 
@@ -10,10 +12,13 @@ async function main() {
     await AppDataSource.initialize();
 
     const app = express();
+    app.use(json());
+    app.use(cookieParser());
 
-    app.get("/", (req, res) => {
-        res.send("Hello World!");
+    app.get("/healthcheck", (req, res) => {
+        res.send("API fonctionnel");
     });
+    app.use("/api/utilisateurs", UtilisateursRouteur);
 
     app.use((req, res) => {
         res.status(404).json({ message: "not found" });

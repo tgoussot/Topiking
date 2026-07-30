@@ -9,7 +9,8 @@ import { SessionQuestion } from "../../src/entities/SessionQuestion";
 import { Participant } from "../../src/entities/Participant";
 import { ReceptionCarte } from "../../src/entities/ReceptionCarte";
 import { ReponseParticipant } from "../../src/entities/ReponseParticipant";
-import { QUESTIONS_PAR_MANCHE } from "../../src/config";
+import { QUESTIONS_PAR_MANCHE } from "../../src/config/config";
+import {genererCodeInvitation} from "../../src/services/Jeux/OrganisationService";
 
 // Fabriques de données de test.
 // Chaque fabrique remplit des valeurs par défaut valides et accepte des
@@ -36,6 +37,7 @@ export async function creerOrganisation(surcharges: Partial<Organisation> = {}):
     const organisation = new Organisation();
     organisation.nom = surcharges.nom ?? `Organisation ${suffixe}`;
     organisation.slug = surcharges.slug ?? `organisation-${suffixe}`;
+    organisation.code_invitation = surcharges.code_invitation ?? await genererCodeInvitation()
 
     return await organisation.save();
 }
