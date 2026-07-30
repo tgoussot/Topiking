@@ -1,0 +1,64 @@
+info:
+  name: 04 Nom d'organisation seul - 201
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{email_test}}",
+        "nom": "Fondateur",
+        "mot_de_passe": "MonMotDePasse1!",
+        "nom_organisation": "{{nom_organisation_test}}"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.id
+      operator: isNumber
+    - expression: res.body.mot_de_passe
+      operator: isUndefined
+
+  scripts:
+    - type: before-request
+      code: |-
+        const marqueur = Date.now();
+
+        bru.setVar("email_test", `fondateur-${marqueur}@exemple.fr`);
+        bru.setVar("nom_organisation_test", `Acme Formation ${marqueur}`);
+
+    - type: tests
+      code: |-
+        test("crée le compte et son organisation avec un 201", function () {
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("renvoie le compte créé", function () {
+          const corps = res.getBody();
+
+          expect(corps.id).to.be.a("number");
+          expect(corps.email).to.equal(bru.getVar("email_test"));
+          expect(corps.nom).to.equal("Fondateur");
+        });
+
+        test("ne renvoie jamais mot_de_passe", function () {
+          const brut = JSON.stringify(res.getBody());
+
+          expect(brut).to.not.contain("mot_de_passe");
+          expect(brut).to.not.contain("MonMotDePasse1!");
+          expect(brut).to.not.contain("$argon2");
+        });
+
+        test("ne divulgue pas le code d'invitation de la nouvelle organisation", function () {
+          expect(res.getBody()).to.not.have.property("code_invitation");
+        });

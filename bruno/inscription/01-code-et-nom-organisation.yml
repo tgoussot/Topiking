@@ -1,0 +1,50 @@
+info:
+  name: 01 Code et nom d'organisation - 400
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{email_test}}",
+        "nom": "Indecis",
+        "mot_de_passe": "MonMotDePasse1!",
+        "code_invitation": {{code_invitation_valide}},
+        "nom_organisation": "Acme Formation"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+
+  scripts:
+    - type: before-request
+      code: |-
+        bru.setVar("email_test", `indecis-${Date.now()}@exemple.fr`);
+
+    - type: tests
+      code: |-
+        test("refuse la demande ambiguë avec un 400", function () {
+          expect(res.getStatus()).to.equal(400);
+        });
+
+        test("explique le refus", function () {
+          expect(res.getBody()).to.have.property("erreur");
+        });
+
+        test("ne crée aucun utilisateur", function () {
+          expect(res.getBody()).to.not.have.property("id");
+        });
+
+        test("ne renvoie jamais mot_de_passe", function () {
+          expect(JSON.stringify(res.getBody())).to.not.contain("mot_de_passe");
+        });

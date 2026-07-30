@@ -1,0 +1,71 @@
+info:
+  name: 03 Email inconnu - 401 identique au 02
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs/tokens"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{email_inexistant}}",
+        "mot_de_passe": "{{mot_de_passe_connexion}}"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+
+  scripts:
+    - type: before-request
+      code: |-
+        bru.setVar("email_inexistant", `fantome-${Date.now()}@exemple.fr`);
+
+    - type: tests
+      code: |-
+        test("refuse l'email inconnu avec un 401", function () {
+          expect(res.getStatus()).to.equal(401);
+        });
+
+        test("ne pose aucun cookie", function () {
+          const entetes = res.getHeaders();
+          const cle = Object.keys(entetes).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+
+          expect(cle).to.be.undefined;
+        });
+
+        test("ne révèle pas que l'email est inconnu", function () {
+          const corps = JSON.stringify(res.getBody()).toLowerCase();
+
+          expect(corps).to.not.contain("inconnu");
+          expect(corps).to.not.contain("introuvable");
+          expect(corps).to.not.contain("existe pas");
+          expect(corps).to.not.contain("not found");
+        });
+
+        test("renvoie le MÊME statut que le mot de passe invalide", function () {
+          expect(res.getStatus()).to.equal(Number(bru.getVar("reponse_02_statut")));
+        });
+
+        test("renvoie EXACTEMENT le même corps que le mot de passe invalide", function () {
+          const attendu = bru.getVar("reponse_02_corps");
+
+          expect(attendu, "le fichier 02 doit être exécuté avant le 03").to.be.a("string");
+
+          expect(JSON.stringify(res.getBody())).to.equal(attendu);
+        });
+
+        test("l'email soumis n'est pas renvoyé en écho", function () {
+          expect(JSON.stringify(res.getBody())).to.not.contain(
+            bru.getVar("email_inexistant")
+          );
+        });

@@ -1,0 +1,56 @@
+info:
+  name: 03 Code d'invitation invalide - 404
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{email_test}}",
+        "nom": "Perdu",
+        "mot_de_passe": "MonMotDePasse1!",
+        "code_invitation": {{code_invitation_inconnu}}
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "404"
+
+  scripts:
+    - type: before-request
+      code: |-
+        bru.setVar("email_test", `perdu-${Date.now()}@exemple.fr`);
+
+    - type: tests
+      code: |-
+        test("refuse le code inconnu avec un 404", function () {
+          expect(res.getStatus()).to.equal(404);
+        });
+
+        test("explique le refus", function () {
+          expect(res.getBody()).to.have.property("erreur");
+        });
+
+        test("ne crée aucun utilisateur", function () {
+          expect(res.getBody()).to.not.have.property("id");
+        });
+
+        test("n'énumère pas les codes existants", function () {
+          const brut = JSON.stringify(res.getBody());
+
+          expect(brut).to.not.contain("100001");
+          expect(brut).to.not.contain("Victor Hugo");
+        });
+
+        test("ne renvoie jamais mot_de_passe", function () {
+          expect(JSON.stringify(res.getBody())).to.not.contain("mot_de_passe");
+        });

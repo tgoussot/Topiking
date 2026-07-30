@@ -1,0 +1,61 @@
+info:
+  name: 02 Code d'invitation valide - 201
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{email_test}}",
+        "nom": "Invite",
+        "mot_de_passe": "MonMotDePasse1!",
+        "code_invitation": {{code_invitation_valide}}
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.id
+      operator: isNumber
+    - expression: res.body.mot_de_passe
+      operator: isUndefined
+
+  scripts:
+    - type: before-request
+      code: |-
+        bru.setVar("email_test", `invite-${Date.now()}@exemple.fr`);
+
+    - type: tests
+      code: |-
+        test("crée l'utilisateur avec un 201", function () {
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("renvoie l'identifiant et l'email du nouveau compte", function () {
+          const corps = res.getBody();
+
+          expect(corps.id).to.be.a("number");
+          expect(corps.email).to.equal(bru.getVar("email_test"));
+          expect(corps.nom).to.equal("Invite");
+        });
+
+        test("ne renvoie jamais mot_de_passe", function () {
+          const brut = JSON.stringify(res.getBody());
+
+          expect(brut).to.not.contain("mot_de_passe");
+          expect(brut).to.not.contain("MonMotDePasse1!");
+          expect(brut).to.not.contain("$argon2");
+        });
+
+        test("ne divulgue pas l'organisation de rattachement", function () {
+          expect(res.getBody()).to.not.have.property("id_organisation");
+        });

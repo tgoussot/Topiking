@@ -1,0 +1,70 @@
+info:
+  name: 07 Email malformé et mot de passe faible - 400
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "pas-un-email",
+        "nom": "Maladroit",
+        "mot_de_passe": "1234",
+        "code_invitation": {{code_invitation_valide}}
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+    - expression: res.body.champs
+      operator: isArray
+
+  scripts:
+    - type: tests
+      code: |-
+        test("rejette le body avec un 400", function () {
+          expect(res.getStatus()).to.equal(400);
+        });
+
+        test("liste les deux champs en erreur", function () {
+          const champs = res.getBody().champs;
+          const noms = champs.map((champ) => champ.propriete);
+
+          expect(noms).to.include("email");
+          expect(noms).to.include("mot_de_passe");
+        });
+
+        test("précise le motif pour chaque champ", function () {
+          for (const champ of res.getBody().champs) {
+            expect(champ.messages).to.be.an("array");
+            expect(champ.messages.length).to.be.above(0);
+          }
+        });
+
+        test("ne renvoie jamais la valeur du mot de passe", function () {
+          const corps = res.getBody();
+          const champMotDePasse = corps.champs.find(
+            (champ) => champ.propriete === "mot_de_passe"
+          );
+
+          expect(champMotDePasse).to.not.be.undefined;
+
+          for (const message of champMotDePasse.messages) {
+            expect(message).to.not.contain("1234");
+          }
+        });
+
+        test("ne renvoie pas la valeur reçue", function () {
+          const brut = JSON.stringify(res.getBody());
+
+          expect(brut).to.not.contain("1234");
+          expect(brut).to.not.contain("pas-un-email");
+        });

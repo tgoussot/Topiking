@@ -1,0 +1,43 @@
+info:
+  name: 00 Préparer le compte de connexion
+  type: http
+  seq: 0
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{email_connexion}}",
+        "nom": "Titulaire",
+        "mot_de_passe": "{{mot_de_passe_connexion}}",
+        "code_invitation": {{code_invitation_valide}}
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+
+  scripts:
+    - type: before-request
+      code: |-
+        bru.setVar("email_connexion", `titulaire-${Date.now()}@exemple.fr`);
+        bru.setVar("mot_de_passe_connexion", "MonMotDePasse1!");
+
+    - type: tests
+      code: |-
+        test("le compte de test est créé", function () {
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("l'amorçage a bien renseigné les identifiants", function () {
+          expect(bru.getVar("email_connexion")).to.be.a("string");
+          expect(bru.getVar("mot_de_passe_connexion")).to.be.a("string");
+        });

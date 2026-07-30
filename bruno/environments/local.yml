@@ -1,0 +1,16 @@
+name: local
+variables:
+  - name: base_url
+    value: http://localhost:3301
+    description: Racine de l'API lancée par « npm run dev ».
+
+  # Code d'invitation issu du seed (src/seed.ts) : « Lycée Victor Hugo ».
+  # Relancer « npm run seed » si la base a été vidée.
+  - name: code_invitation_valide
+    value: "100001"
+    description: Code du seed, organisation « Lycée Victor Hugo » (id 1).
+
+  # Hors de la plage attribuée par le seed : aucune organisation ne le porte.
+  - name: code_invitation_inconnu
+    value: "999999"
+    description: Code volontairement absent de la base, pour le cas 404.

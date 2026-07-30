@@ -1,0 +1,55 @@
+info:
+  name: 04 Email malformé - 400
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs/tokens"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "pas-un-email",
+        "mot_de_passe": "{{mot_de_passe_connexion}}"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+    - expression: res.body.champs
+      operator: isArray
+
+  scripts:
+    - type: tests
+      code: |-
+        test("rejette l'email malformé avec un 400", function () {
+          expect(res.getStatus()).to.equal(400);
+        });
+
+        test("désigne le champ email", function () {
+          const noms = res.getBody().champs.map((champ) => champ.propriete);
+
+          expect(noms).to.include("email");
+        });
+
+        test("ne pose aucun cookie", function () {
+          const entetes = res.getHeaders();
+          const cle = Object.keys(entetes).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+
+          expect(cle).to.be.undefined;
+        });
+
+        test("ne renvoie pas les valeurs reçues", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("pas-un-email");
+          expect(corps).to.not.contain(bru.getVar("mot_de_passe_connexion"));
+        });

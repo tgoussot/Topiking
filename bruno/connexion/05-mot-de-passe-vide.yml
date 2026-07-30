@@ -1,0 +1,48 @@
+info:
+  name: 05 Mot de passe vide - 400
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs/tokens"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{email_connexion}}",
+        "mot_de_passe": ""
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "400"
+    - expression: res.body.champs
+      operator: isArray
+
+  scripts:
+    - type: tests
+      code: |-
+        test("rejette le mot de passe vide avec un 400", function () {
+          expect(res.getStatus()).to.equal(400);
+        });
+
+        test("désigne le champ mot_de_passe", function () {
+          const noms = res.getBody().champs.map((champ) => champ.propriete);
+
+          expect(noms).to.include("mot_de_passe");
+        });
+
+        test("ne pose aucun cookie", function () {
+          const entetes = res.getHeaders();
+          const cle = Object.keys(entetes).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+
+          expect(cle).to.be.undefined;
+        });

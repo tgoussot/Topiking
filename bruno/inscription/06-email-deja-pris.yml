@@ -1,0 +1,73 @@
+info:
+  name: 06 Email déjà pris - 409
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{email_test}}",
+        "nom": "Doublon",
+        "mot_de_passe": "MonMotDePasse1!",
+        "code_invitation": {{code_invitation_valide}}
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "409"
+
+  scripts:
+    - type: before-request
+      code: |-
+        const email = `doublon-${Date.now()}@exemple.fr`;
+        bru.setVar("email_test", email);
+
+        const premiere = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs`,
+          headers: { "Content-Type": "application/json" },
+          data: {
+            email: email,
+            nom: "Doublon",
+            mot_de_passe: "MonMotDePasse1!",
+            code_invitation: Number(bru.getEnvVar("code_invitation_valide")),
+          },
+        });
+
+        if (premiere.status !== 201) {
+          throw new Error(
+            `La création préalable a renvoyé ${premiere.status} au lieu de 201. ` +
+            `Vérifiez que le seed est chargé (code ${bru.getEnvVar("code_invitation_valide")}).`
+          );
+        }
+
+    - type: tests
+      code: |-
+        test("refuse le doublon avec un 409", function () {
+          expect(res.getStatus()).to.equal(409);
+        });
+
+        test("explique le conflit", function () {
+          expect(res.getBody()).to.have.property("erreur");
+        });
+
+        test("ne crée pas un second compte", function () {
+          expect(res.getBody()).to.not.have.property("id");
+        });
+
+        test("ne renvoie jamais mot_de_passe", function () {
+          const brut = JSON.stringify(res.getBody());
+
+          expect(brut).to.not.contain("mot_de_passe");
+          expect(brut).to.not.contain("MonMotDePasse1!");
+          expect(brut).to.not.contain("$argon2");
+        });

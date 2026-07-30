@@ -1,0 +1,110 @@
+info:
+  name: 03 Moi avec un token trafiqué - 401
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{base_url}}/api/utilisateurs/moi"
+  headers:
+    - name: Cookie
+      value: "token={{token_trafique}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+
+  scripts:
+    - type: before-request
+      code: |-
+        const email = `trafic-${Date.now()}@exemple.fr`;
+        const motDePasse = "MonMotDePasse1!";
+
+        const inscription = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs`,
+          headers: { "Content-Type": "application/json" },
+          data: {
+            email: email,
+            nom: "Trafic",
+            mot_de_passe: motDePasse,
+            code_invitation: Number(bru.getEnvVar("code_invitation_valide")),
+          },
+        });
+
+        if (inscription.status !== 201) {
+          throw new Error(`Inscription impossible (${inscription.status}). Le seed est-il chargé ?`);
+        }
+
+        const connexion = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs/tokens`,
+          headers: { "Content-Type": "application/json" },
+          data: { email: email, mot_de_passe: motDePasse },
+        });
+
+        const entetes = connexion.headers;
+        const cle = Object.keys(entetes).find((nom) => nom.toLowerCase() === "set-cookie");
+        const brut = Array.isArray(entetes[cle]) ? entetes[cle].join("; ") : String(entetes[cle]);
+        const trouve = brut.match(/token=([^;]+)/);
+
+        if (!trouve) {
+          throw new Error("Aucun cookie token dans la réponse de connexion.");
+        }
+
+        const tokenLegitime = trouve[1];
+        const [entete, payload, signature] = tokenLegitime.split(".");
+
+        // GARDE-FOU : le bac à sable de Bruno ne connaît pas l'encodage
+        // "base64url" (« Unknown encoding: base64url »), d'où ces conversions.
+        function versBase64(base64url) {
+          const remis = base64url.replace(/-/g, "+").replace(/_/g, "/");
+          const reste = remis.length % 4;
+
+          return reste === 0 ? remis : remis + "=".repeat(4 - reste);
+        }
+
+        function versBase64Url(base64) {
+          return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+        }
+
+        const lisible = JSON.parse(
+          Buffer.from(versBase64(payload), "base64").toString("utf8")
+        );
+        const subOrigine = lisible.sub;
+
+        lisible.sub = subOrigine + 1;
+
+        const payloadTrafique = versBase64Url(
+          Buffer.from(JSON.stringify(lisible)).toString("base64")
+        );
+
+        bru.setVar("token_trafique", `${entete}.${payloadTrafique}.${signature}`);
+        bru.setVar("sub_origine", subOrigine);
+        bru.setVar("sub_revendique", lisible.sub);
+
+    - type: tests
+      code: |-
+        test("le payload a bien été modifié avant l'envoi", function () {
+          expect(bru.getVar("sub_revendique")).to.not.equal(bru.getVar("sub_origine"));
+        });
+
+        test("rejette le token trafiqué avec un 401", function () {
+          expect(res.getStatus()).to.equal(401);
+        });
+
+        test("n'accorde pas l'identité revendiquée", function () {
+          const corps = res.getBody();
+
+          expect(corps).to.not.have.property("id");
+          expect(corps).to.not.have.property("email");
+        });
+
+        test("répond comme pour une absence de cookie", function () {
+          const reference = bru.getVar("refus_reference");
+
+          expect(reference, "le fichier 01 doit être exécuté avant le 03").to.be.a("string");
+          expect(JSON.stringify(res.getBody())).to.equal(reference);
+        });

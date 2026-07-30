@@ -1,0 +1,48 @@
+info:
+  name: 01 Moi sans cookie - 401
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{base_url}}/api/utilisateurs/moi"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+
+  scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : sans ce clear, le pot à cookies de Bruno joint un token
+        // d'une connexion précédente et ce test devient un faux positif (200).
+        await bru.cookies.clear();
+
+    - type: tests
+      code: |-
+        test("le client était bien anonyme au moment de l'envoi", function () {
+          expect(req.getHeader("Cookie")).to.be.undefined;
+        });
+
+        test("refuse l'accès sans cookie avec un 401", function () {
+          expect(res.getStatus()).to.equal(401);
+        });
+
+        test("ne renvoie aucune identité", function () {
+          const corps = res.getBody();
+
+          expect(corps).to.not.have.property("id");
+          expect(corps).to.not.have.property("email");
+        });
+
+        test("ne renvoie jamais mot_de_passe", function () {
+          expect(JSON.stringify(res.getBody())).to.not.contain("mot_de_passe");
+        });
+
+        test("mémorise le message de refus", function () {
+          bru.setVar("refus_reference", JSON.stringify(res.getBody()));
+
+          expect(bru.getVar("refus_reference")).to.be.a("string");
+        });

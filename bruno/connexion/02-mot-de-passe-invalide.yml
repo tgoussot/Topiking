@@ -1,0 +1,63 @@
+info:
+  name: 02 Mot de passe invalide - 401
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs/tokens"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{email_connexion}}",
+        "mot_de_passe": "MauvaisMotDePasse1!"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "401"
+
+  scripts:
+    - type: tests
+      code: |-
+        test("refuse le mauvais mot de passe avec un 401", function () {
+          expect(res.getStatus()).to.equal(401);
+        });
+
+        test("ne pose aucun cookie", function () {
+          const entetes = res.getHeaders();
+          const cle = Object.keys(entetes).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+
+          expect(cle).to.be.undefined;
+        });
+
+        test("ne dit pas que le mot de passe est en cause", function () {
+          const corps = JSON.stringify(res.getBody()).toLowerCase();
+
+          expect(corps).to.not.contain("mot de passe");
+          expect(corps).to.not.contain("password");
+        });
+
+        test("la réponse ne contient jamais mot_de_passe", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("mot_de_passe");
+          expect(corps).to.not.contain("MauvaisMotDePasse1!");
+        });
+
+        // GARDE-FOU : ce fichier doit passer AVANT le 03, qui compare sa
+        // réponse à celle-ci. C'est la preuve anti-énumération.
+        test("mémorise la réponse pour la comparaison", function () {
+          bru.setVar("reponse_02_statut", res.getStatus());
+          bru.setVar("reponse_02_corps", JSON.stringify(res.getBody()));
+
+          expect(bru.getVar("reponse_02_corps")).to.be.a("string");
+        });

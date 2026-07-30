@@ -1,0 +1,95 @@
+info:
+  name: 02 Moi avec cookie - 200
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{base_url}}/api/utilisateurs/moi"
+  headers:
+    - name: Cookie
+      value: "token={{token_session}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.id
+      operator: isNumber
+
+  scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : bru.sendRequest a son propre pot à cookies, son token
+        // n'est pas joint ici. D'où l'en-tête Cookie posé à la main ci-dessus.
+        const email = `session-${Date.now()}@exemple.fr`;
+        const motDePasse = "MonMotDePasse1!";
+
+        bru.setVar("email_session", email);
+        bru.setVar("mot_de_passe_session", motDePasse);
+
+        const inscription = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs`,
+          headers: { "Content-Type": "application/json" },
+          data: {
+            email: email,
+            nom: "Session",
+            mot_de_passe: motDePasse,
+            code_invitation: Number(bru.getEnvVar("code_invitation_valide")),
+          },
+        });
+
+        if (inscription.status !== 201) {
+          throw new Error(
+            `Inscription impossible (${inscription.status}). ` +
+            `Le seed est-il chargé ? Code attendu : ${bru.getEnvVar("code_invitation_valide")}.`
+          );
+        }
+
+        bru.setVar("id_session", inscription.data.id);
+
+        const connexion = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs/tokens`,
+          headers: { "Content-Type": "application/json" },
+          data: { email: email, mot_de_passe: motDePasse },
+        });
+
+        if (connexion.status !== 200) {
+          throw new Error(`Connexion impossible (${connexion.status}).`);
+        }
+
+        const entetes = connexion.headers;
+        const cle = Object.keys(entetes).find((nom) => nom.toLowerCase() === "set-cookie");
+        const brut = Array.isArray(entetes[cle]) ? entetes[cle].join("; ") : String(entetes[cle]);
+        const trouve = brut.match(/token=([^;]+)/);
+
+        if (!trouve) {
+          throw new Error("Aucun cookie token dans la réponse de connexion.");
+        }
+
+        bru.setVar("token_session", trouve[1]);
+
+    - type: tests
+      code: |-
+        test("accepte le cookie valide avec un 200", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("renvoie l'identité du porteur du token", function () {
+          const corps = res.getBody();
+
+          expect(corps.id).to.equal(bru.getVar("id_session"));
+          expect(corps.email).to.equal(bru.getVar("email_session"));
+          expect(corps.nom).to.equal("Session");
+        });
+
+        test("ne renvoie ni hash ni organisation", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("mot_de_passe");
+          expect(corps).to.not.contain("$argon2");
+          expect(corps).to.not.contain("id_organisation");
+        });

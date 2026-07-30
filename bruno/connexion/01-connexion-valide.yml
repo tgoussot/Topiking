@@ -1,0 +1,81 @@
+info:
+  name: 01 Connexion valide - 200
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base_url}}/api/utilisateurs/tokens"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{email_connexion}}",
+        "mot_de_passe": "{{mot_de_passe_connexion}}"
+      }
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+  scripts:
+    - type: tests
+      code: |-
+        function lireSetCookie() {
+          const entetes = res.getHeaders();
+          const cle = Object.keys(entetes).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+
+          if (!cle) return "";
+
+          const valeur = entetes[cle];
+          return Array.isArray(valeur) ? valeur.join("; ") : String(valeur);
+        }
+
+        test("la connexion réussit avec un 200", function () {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("le serveur envoie un Set-Cookie", function () {
+          expect(lireSetCookie()).to.not.equal("");
+        });
+
+        test("le cookie s'appelle token", function () {
+          expect(lireSetCookie()).to.contain("token=");
+        });
+
+        test("le cookie est HttpOnly", function () {
+          expect(lireSetCookie()).to.contain("HttpOnly");
+        });
+
+        test("le cookie est SameSite=Strict", function () {
+          expect(lireSetCookie()).to.contain("SameSite=Strict");
+        });
+
+        test("le cookie est Secure", function () {
+          expect(lireSetCookie()).to.contain("Secure");
+        });
+
+        test("le token n'apparaît pas dans le corps de la réponse", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("token");
+          expect(corps).to.not.contain("eyJ");
+        });
+
+        test("la réponse ne contient jamais mot_de_passe", function () {
+          const corps = JSON.stringify(res.getBody());
+
+          expect(corps).to.not.contain("mot_de_passe");
+          expect(corps).to.not.contain("$argon2");
+        });
+
+        test("la réponse identifie le compte connecté", function () {
+          expect(res.getBody().email).to.equal(bru.getVar("email_connexion"));
+        });

@@ -1,0 +1,62 @@
+info:
+  name: 04 Déconnexion - 204
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: "{{base_url}}/api/utilisateurs/tokens"
+  headers:
+    - name: Cookie
+      value: "token={{token_session}}"
+
+runtime:
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "204"
+
+  scripts:
+    - type: tests
+      code: |-
+        function lireSetCookie() {
+          const entetes = res.getHeaders();
+          const cle = Object.keys(entetes).find(
+            (nom) => nom.toLowerCase() === "set-cookie"
+          );
+
+          if (!cle) return "";
+
+          const valeur = entetes[cle];
+          return Array.isArray(valeur) ? valeur.join("; ") : String(valeur);
+        }
+
+        test("répond 204", function () {
+          expect(res.getStatus()).to.equal(204);
+        });
+
+        test("ne renvoie aucun corps", function () {
+          const corps = res.getBody();
+          const vide = corps === undefined || corps === null || corps === "" ||
+                       (typeof corps === "object" && Object.keys(corps).length === 0);
+
+          expect(vide, `corps inattendu : ${JSON.stringify(corps)}`).to.be.true;
+        });
+
+        test("renvoie un Set-Cookie pour effacer le token", function () {
+          expect(lireSetCookie()).to.contain("token=");
+        });
+
+        test("le cookie de remplacement est vide et expiré", function () {
+          const cookie = lireSetCookie();
+
+          expect(cookie).to.contain("token=;");
+          expect(cookie).to.contain("Expires=Thu, 01 Jan 1970");
+        });
+
+        test("conserve les attributs de protection", function () {
+          const cookie = lireSetCookie();
+
+          expect(cookie).to.contain("HttpOnly");
+          expect(cookie).to.contain("SameSite=Strict");
+        });
