@@ -1,4 +1,5 @@
 import express from "express";
+import {In} from "typeorm";
 import {Session} from "../entities/Session";
 import {Participant} from "../entities/Participant";
 import {ReponseParticipant} from "../entities/ReponseParticipant";
@@ -16,6 +17,7 @@ import {
     questionPourJoueur,
 } from "../services/Jeux/QuestionRunnerService";
 import {DistributionManche} from "../services/Jeux/DistributionCarteService";
+import {versParticipant, versSession} from "../websocket/Registre";
 
 function messageDe(erreur: unknown): string {
     if (erreur instanceof Error) {
@@ -64,6 +66,15 @@ function presenterCorrection(correction: CorrectionQuestion) {
     };
 }
 
+function presenterMonResultat(reponse: ReponseParticipant) {
+    return {
+        id_question: reponse.id_question,
+        reponse_choisie: reponse.reponse_choisie,
+        temps_reponse_ms: reponse.temps_reponse_ms,
+        points: reponse.points,
+    };
+}
+
 function presenterDistribution(distribution: DistributionManche) {
     return {
         numero_manche: distribution.numeroManche,
@@ -90,6 +101,28 @@ function presenterDistribution(distribution: DistributionManche) {
     };
 }
 
+function presenterDistributionPublic(distribution: DistributionManche) {
+    return {
+        numero_manche: distribution.numeroManche,
+        classement: distribution.classement.map((score) => ({
+            id_participant: score.idParticipant,
+            pseudo: score.pseudo,
+            points: score.points,
+            temps_cumule_ms: score.tempsCumuleMs,
+        })),
+        malus_au_premier: distribution.malusAuPremier === null
+            ? null
+            : {
+                id_participant: distribution.malusAuPremier.id_participant,
+            },
+        bonus_au_dernier: distribution.bonusAuDernier === null
+            ? null
+            : {
+                id_participant: distribution.bonusAuDernier.id_participant,
+            },
+    };
+}
+
 export async function ouvrirQuestionCourante(baseRequest: express.Request, res: express.Response) {
     const req = baseRequest as RequeteAuthentifiee;
     const id = Number(req.params.id);
@@ -108,6 +141,26 @@ export async function ouvrirQuestionCourante(baseRequest: express.Request, res: 
     try {
         const question = await ouvrirQuestion(id, numero_manche, ordre);
 
+        const participantSession = await Participant.find({ where: {id_session: id}})
+
+        // Parallèle | recup info qst
+        const data = await Promise.all(
+            participantSession.map(p => questionPourJoueur(p.id, id, numero_manche, ordre))
+        );
+
+        const server_now = Date.now();
+        for (let i = 0; i < participantSession.length; i++) {
+            const participant = participantSession[i];
+            if(!participant){
+                continue;
+            }
+            const infoQuestion = data[i];
+            if(!infoQuestion){
+                continue;
+            }
+            // Prevenir les soucis d'heure
+            versParticipant(id, participant.id, "question.ouverte", { ...presenterQuestionAffichee(infoQuestion), server_now })
+        }
         return res.status(200).json(presenterQuestionAffichee(question));
     } catch (erreur) {
         return res.status(409).json({erreur: messageDe(erreur)});
@@ -224,6 +277,29 @@ export async function cloturerQuestionCourante(baseRequest: express.Request, res
     try {
         const correction = await cloturerQuestion(id);
 
+        versSession(id, "question.cloturee", presenterCorrection(correction))
+
+        // Le détail personnel part sur le canal privé : chacun ne voit que son propre score.
+        // Filtre sur les participants de la session : une même question peut être tirée
+        // par plusieurs sessions, ReponseParticipant ne porte que l'id de question.
+        const participantsSession = await Participant.find({where: {id_session: id}});
+
+        const reponses = await ReponseParticipant.find({
+            where: {
+                id_question: correction.idQuestion,
+                id_participant: In(participantsSession.map((participant) => participant.id)),
+            },
+        });
+
+        for (const reponse of reponses) {
+            versParticipant(
+                id,
+                reponse.id_participant,
+                "question.mon_resultat",
+                presenterMonResultat(reponse)
+            );
+        }
+
         return res.status(200).json(presenterCorrection(correction));
     } catch (erreur) {
         return res.status(409).json({erreur: messageDe(erreur)});
@@ -245,6 +321,8 @@ export async function cloturerMancheCourante(baseRequest: express.Request, res: 
 
     try {
         const distribution = await cloturerManche(id);
+
+        versSession(id, "manche.cloturee", presenterDistributionPublic(distribution))
 
         return res.status(200).json(presenterDistribution(distribution));
     } catch (erreur) {

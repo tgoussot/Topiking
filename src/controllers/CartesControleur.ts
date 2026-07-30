@@ -7,6 +7,7 @@ import {SEUIL_CIBLAGE_MULTIPLE} from "../config/config";
 import {cartesEnMain} from "../services/Jeux/DistributionCarteService";
 import {ciblesEligibles, ciblesImposees, jouerCarte} from "../services/Jeux/CiblageService";
 import {classementGeneral} from "../services/Jeux/ClassementService";
+ import {versSession} from "../websocket/Registre";
 
 function messageDe(erreur: unknown): string {
     if (erreur instanceof Error) {
@@ -125,9 +126,15 @@ export async function jouerUneCarte(req: express.Request, res: express.Response)
 
     const {id_reception, id_cible} = req.body;
 
+
+    const participant = await Participant.findOneBy({id: idParticipant});
+    if(!participant){
+        return res.status(404).json({erreur: "Participant introuvable"});
+    }
+
     try {
         const lignes = await jouerCarte(idParticipant, id_reception, id_cible ?? null);
-
+        versSession(participant.id_session, "carte.jouee", { cartes: lignes.map(presenterCarteJouee) })
         return res.status(200).json(lignes.map(presenterCarteJouee));
     } catch (erreur) {
         const message = messageDe(erreur);

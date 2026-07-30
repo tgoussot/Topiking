@@ -2,6 +2,8 @@ import express from "express";
 import {Participant} from "../entities/Participant";
 import {Session} from "../entities/Session";
 import {compter, lister, quitter, rejoindre} from "../services/Jeux/ParticipantService";
+import {genererTokenParticipant} from "../services/AuthService";
+import {versSession} from "../websocket/Registre";
 
 function messageDe(erreur: unknown): string {
     if (erreur instanceof Error) {
@@ -25,7 +27,12 @@ export async function rejoindreSession(req: express.Request, res: express.Respon
 
     try {
         const participant = await rejoindre(code_acces, pseudo);
+        const token = genererTokenParticipant(participant);
+        res.cookie("token_participant",token,{httpOnly:true, secure:true, sameSite:"strict", maxAge: 4*60*60*1000})
 
+        versSession(participant.id_session, "participant.rejoint", presenterParticipant(participant))
+
+        // REST | plus preuve d'identite
         return res.status(201).json(presenterParticipant(participant));
     } catch (erreur) {
         const message = messageDe(erreur);
@@ -65,9 +72,16 @@ export async function quitterSession(req: express.Request, res: express.Response
         return res.status(400).json({erreur: "Identifiant de participant invalide"});
     }
 
+    const participant = await Participant.findOneBy({ id : id })
+    if (!participant) {
+        return res.status(404).json({erreur: "Participant introuvable"});
+    }
+
+
+
     try {
         await quitter(id);
-
+        versSession(participant.id_session, "participant.parti", { id: participant.id })
         return res.status(204).send();
     } catch (erreur) {
         const message = messageDe(erreur);

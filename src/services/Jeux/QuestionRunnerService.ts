@@ -23,8 +23,8 @@ export type CorrectionQuestion = {
     idQuestion: number;
     indexBonneReponse: number;
     explication: string | null;
-    // TODO : enrichir avec le détail par joueur (qui a répondu juste, combien de points),
-    // quand un consommateur de l'API en aura besoin.
+    // Volontairement commun à toute la session : le détail par joueur (points marqués)
+    // part sur le canal privé de chacun via l'événement "question.mon_resultat".
 };
 
 
@@ -288,7 +288,6 @@ export async function cloturerQuestion(idSession: number): Promise<CorrectionQue
 
     await session.save();
 
-    // TODO : diffuser la correction aux joueurs par WebSocket.
     return {
         idQuestion: question.id,
         indexBonneReponse: question.index_bonne_reponse,

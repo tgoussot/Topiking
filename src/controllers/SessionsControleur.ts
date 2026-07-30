@@ -13,6 +13,8 @@ import {
     terminer,
     trouverParCode,
 } from "../services/Jeux/SessionService";
+import {versSession} from "../websocket/Registre";
+import {FENETRE_CARTES_S} from "../config/config";
 
 function messageDe(erreur: unknown): string {
     if (erreur instanceof Error) {
@@ -33,6 +35,19 @@ function presenterSession(session: Session) {
         date_debut: session.date_debut,
         date_fin: session.date_fin,
         id_animateur: session.id_animateur,
+    };
+}
+
+function tempsJouer(){
+    return{
+        duree_ms: FENETRE_CARTES_S * 1000 // 20s
+    }
+}
+
+function presenterSessionPublique(session: Session){
+    return{
+        statut:session.statut,
+        numero_manche_courante: session.numero_manche_courante
     };
 }
 
@@ -165,7 +180,7 @@ export async function demarrerSession(baseRequest: express.Request, res: express
 
     try {
         const session = await demarrer(id, req.utilisateur.id);
-
+        versSession(id,"session.demarree", presenterSessionPublique(session))
         return res.status(200).json(presenterSession(session));
     } catch (erreur) {
         const message = messageDe(erreur);
@@ -198,6 +213,7 @@ export async function ouvrirFenetre(baseRequest: express.Request, res: express.R
     try {
         const misAJour = await ouvrirFenetreCartes(id);
 
+        versSession(id,'cartes.fenetre_ouverte',tempsJouer());
         return res.status(200).json(presenterSession(misAJour));
     } catch (erreur) {
         return res.status(409).json({erreur: messageDe(erreur)});
@@ -242,6 +258,7 @@ export async function terminerSession(baseRequest: express.Request, res: express
     try {
         const misAJour = await terminer(id);
 
+        versSession(id, "session.terminee", presenterSessionPublique(misAJour));
         return res.status(200).json(presenterSession(misAJour));
     } catch (erreur) {
         return res.status(409).json({erreur: messageDe(erreur)});
