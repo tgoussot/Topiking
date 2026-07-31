@@ -4,6 +4,8 @@ import {genererToken, hacherMotDePasse, verifierMotDePasse} from "../services/Au
 import {Organisation} from "../entities/Organisation";
 import {fabriquerSlug, genererCodeInvitation} from "../services/Jeux/OrganisationService";
 import {RequeteAuthentifiee} from "../middlewares/VerifAuth";
+import {Media} from "../entities/Media";
+import {urlPublique} from "../services/StockageService";
 
 export async function creerUtilisateur(req: express.Request, res: express.Response){
     const { email, nom, mot_de_passe, code_invitation, nom_organisation } = req.body;
@@ -63,7 +65,42 @@ export function supprimerToken(req: express.Request, res:express.Response){
 }
 export async function moi(baseRequest: express.Request, res:express.Response){
     const req = baseRequest as RequeteAuthentifiee;
-    return res.status(200).json({id: req.utilisateur.id, email: req.utilisateur.email, nom:req.utilisateur.nom})
+
+    const media = req.utilisateur.id_media
+        ? await Media.findOneBy({id: req.utilisateur.id_media})
+        : null;
+
+    return res.status(200).json({
+        id: req.utilisateur.id,
+        email: req.utilisateur.email,
+        nom: req.utilisateur.nom,
+        avatar: media ? urlPublique(media.cle) : null,
+    })
+}
+
+export async function definirAvatar(baseRequest: express.Request, res: express.Response){
+    const req = baseRequest as RequeteAuthentifiee;
+    const {id_media} = req.body;
+
+    if (id_media !== null) {
+        const media = await Media.findOneBy({id: id_media});
+
+        if (!media) {
+            return res.status(404).json({erreur: "Média introuvable"});
+        }
+    }
+
+    req.utilisateur.id_media = id_media;
+    await req.utilisateur.save();
+
+    const media = id_media ? await Media.findOneBy({id: id_media}) : null;
+
+    return res.status(200).json({
+        id: req.utilisateur.id,
+        email: req.utilisateur.email,
+        nom: req.utilisateur.nom,
+        avatar: media ? urlPublique(media.cle) : null,
+    });
 }
 
 export async function monOrganisation(baseRequest: express.Request, res:express.Response){

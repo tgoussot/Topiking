@@ -1,0 +1,98 @@
+info:
+  name: 02 Téléverser une image - 201
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{base_url}}/api/medias/cartes"
+  headers:
+    - name: Cookie
+      value: "token={{token_media}}"
+  body:
+    type: multipart-form
+    data:
+      - name: image
+        type: file
+        value:
+          - fixtures/illustration.png
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : le pot à cookies de Bruno mémorise le dernier cookie reçu
+        // par domaine et le FUSIONNE dans l'en-tête « Cookie » en lui donnant la
+        // PRIORITÉ sur la valeur déclarée ci-dessus. Sans cette purge, le jeton
+        // d'un joueur ou d'un autre compte supplanterait celui du téléverseur.
+        await bru.cookies.jar().deleteCookies(bru.getEnvVar("base_url"));
+
+        // Un compte neuf par exécution : le média appartient à son téléverseur,
+        // et les requêtes 05 et 06 vérifient précisément ce lien d'appartenance.
+        const email = `media-${Date.now()}@exemple.fr`;
+        const motDePasse = "MonMotDePasse1!";
+
+        const inscription = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs`,
+          headers: { "Content-Type": "application/json" },
+          data: {
+            email: email,
+            nom: "Téléverseur",
+            mot_de_passe: motDePasse,
+            code_invitation: Number(bru.getEnvVar("code_invitation_valide")),
+          },
+        });
+
+        if (inscription.status !== 201) {
+          throw new Error(`Inscription impossible (${inscription.status}).`);
+        }
+
+        const connexion = await bru.sendRequest({
+          method: "POST",
+          url: `${bru.getEnvVar("base_url")}/api/utilisateurs/tokens`,
+          headers: { "Content-Type": "application/json" },
+          data: { email: email, mot_de_passe: motDePasse },
+        });
+
+        const entetes = connexion.headers;
+        const cle = Object.keys(entetes).find((nom) => nom.toLowerCase() === "set-cookie");
+        const brut = Array.isArray(entetes[cle]) ? entetes[cle].join("; ") : String(entetes[cle]);
+        const trouve = brut.match(/token=([^;]+)/);
+
+        if (!trouve) {
+          throw new Error("Aucun cookie token dans la réponse de connexion.");
+        }
+
+        bru.setVar("token_media", trouve[1]);
+
+    - type: tests
+      code: |-
+        if (res.getStatus() === 201) {
+          bru.setVar("id_media", res.getBody().id);
+        }
+
+        test("le média est enregistré", function () {
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("l'image est convertie en WebP", function () {
+          // Le contrôleur normalise tout envoi en WebP : le PNG déposé ne doit
+          // pas ressortir tel quel, sinon la conversion sharp a été contournée.
+          expect(res.getBody().mimetype).to.equal("image/webp");
+        });
+
+        test("le nom d'origine est conservé", function () {
+          expect(res.getBody().nom_original).to.equal("illustration.png");
+        });
+
+        test("une URL publique est renvoyée", function () {
+          // C'est cette URL que le front consommera : sans elle, le média
+          // serait stocké mais inaccessible.
+          expect(res.getBody().url).to.be.a("string");
+          expect(res.getBody().url).to.contain("cartes/");
+        });
+
+        test("le média est rattaché à son téléverseur", function () {
+          expect(res.getBody().id_utilisateur).to.be.a("number");
+        });

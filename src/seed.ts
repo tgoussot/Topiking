@@ -11,7 +11,10 @@ import { Participant } from "./entities/Participant";
 import { ReponseParticipant } from "./entities/ReponseParticipant";
 import { Carte } from "./entities/Carte";
 import { ReceptionCarte } from "./entities/ReceptionCarte";
+import { Media } from "./entities/Media";
 import { hacherMotDePasse } from "./services/AuthService";
+import { genererCle, televerser } from "./services/StockageService";
+import sharp from "sharp";
 
 // Mot de passe commun à tous les comptes du seed : il permet de se connecter
 // réellement à l'API avec ces comptes, sans passer par une inscription.
@@ -24,6 +27,31 @@ function at<T>(rows: T[], index: number): T {
     return row;
 }
 
+// Fabrique une image unie, la téléverse dans MinIO et renvoie la ligne Media à insérer.
+// Le seed dépend donc du stockage objet : sans MinIO joignable, il échoue franchement
+// plutôt que de laisser des URL pointant sur des fichiers absents.
+async function fabriquerMedia(
+    dossier: string,
+    nomOriginal: string,
+    couleur: {r: number; g: number; b: number},
+    idUtilisateur: number
+) {
+    const image = await sharp({create: {width: 640, height: 480, channels: 3, background: couleur}})
+        .webp()
+        .toBuffer();
+
+    const cle = genererCle(dossier);
+    await televerser(image, cle, "image/webp");
+
+    return {
+        cle,
+        mimetype: "image/webp",
+        nom_original: nomOriginal,
+        taille: image.length,
+        id_utilisateur: idUtilisateur,
+    };
+}
+
 async function seed() {
     await AppDataSource.initialize();
 
@@ -32,7 +60,7 @@ async function seed() {
         TRUNCATE TABLE
             "reception_carte", "reponse_participant", "participant",
             "session_question", "session_theme", "session", "question", "theme",
-            "utilisateur", "organisation", "carte"
+            "utilisateur", "organisation", "carte", "media"
         RESTART IDENTITY CASCADE
     `);
 
@@ -248,6 +276,24 @@ async function seed() {
     const cElan = at(cartes, 5);
     // "Flou" (index 2) et "Anticipation" (index 6) ne sont jamais distribuées → testent RECOIT 0,n côté 0
 
+    // ---------------------------------------------------------------- MEDIA
+    // Les fichiers sont réellement téléversés dans MinIO : les URL renvoyées par
+    // l'API pointent donc sur des images valides, exploitables par Bruno et le front.
+    const medias = await AppDataSource.getRepository(Media).save([
+        await fabriquerMedia("cartes", "brouillage.webp", {r: 190, g: 60, b: 70}, uClaire.id),
+        await fabriquerMedia("cartes", "rallonge.webp", {r: 60, g: 150, b: 90}, uClaire.id),
+        await fabriquerMedia("avatars", "claire.webp", {r: 70, g: 110, b: 200}, uClaire.id),
+    ]);
+
+    // Deux cartes illustrées, les cinq autres sans image → testent ILLUSTRE côté 0
+    cBrouillage.id_media = at(medias, 0).id;
+    cRallonge.id_media = at(medias, 1).id;
+    await AppDataSource.getRepository(Carte).save([cBrouillage, cRallonge]);
+
+    // Une seule animatrice a un avatar → teste AFFICHE côté 0
+    uClaire.id_media = at(medias, 2).id;
+    await AppDataSource.getRepository(Utilisateur).save(uClaire);
+
     // ---------------------------------------------------------------- SESSION (ANIME 0,n — 1,1)
     const sessions = await AppDataSource.getRepository(Session).save([
         // Session terminée et complète : c'est elle qui porte le jeu de données riche
@@ -434,7 +480,7 @@ async function seed() {
 
     // ---------------------------------------------------------------- Récapitulatif
     for (const entity of [
-        Organisation, Utilisateur, Theme, Question, Carte,
+        Organisation, Utilisateur, Theme, Question, Carte, Media,
         Session, SessionTheme, SessionQuestion, Participant, ReponseParticipant, ReceptionCarte,
     ]) {
         const count = await AppDataSource.getRepository(entity).count();

@@ -7,6 +7,7 @@ import {ParticipantsRouteur} from "./routes/ParticipantsRoute";
 import {ThemesRouteur} from "./routes/ThemesRoute";
 import {QuestionsRouteur} from "./routes/QuestionsRoute";
 import {CartesRouteur} from "./routes/CartesRoute";
+import {MediasRouteur} from "./routes/MediasRoute";
 import cookieParser = require("cookie-parser");
 import {createServer} from "node:http";
 import {GestionWebSocket} from "./websocket/ServeurSocket";
@@ -35,6 +36,7 @@ async function main() {
     app.use("/api/themes", ThemesRouteur);
     app.use("/api/questions", QuestionsRouteur);
     app.use("/api/cartes", CartesRouteur);
+    app.use("/api/medias", MediasRouteur);
 
     app.use((req, res) => {
         res.status(404).json({ message: "not found" });

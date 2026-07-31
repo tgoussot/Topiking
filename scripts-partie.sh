@@ -8,8 +8,12 @@
 set -uo pipefail
 
 BASE="${BASE:-http://localhost:3301}"
-EMAIL="${EMAIL:-narrra@protonmail.com}"
-MDP="${MDP:-@THEOxavier722}"
+# Compte du seed : Hugo Martin anime pour « IUT Informatique Lyon », la seule
+# organisation qui porte les thèmes 4/5/8. Un compte créé à la main ne survit
+# pas au seed, qui tronque la table « utilisateur » à chaque exécution.
+EMAIL="${EMAIL:-hugo.martin@iut-lyon.fr}"
+MDP="${MDP:-MotDePasse1!}"
+# Algorithmique, Réseaux, Bases de données — les trois thèmes actifs de l'IUT.
 THEMES="${THEMES:-[4, 5, 8]}"
 JOUEURS="${JOUEURS:-3}"
 MANCHES="${MANCHES:-3}"

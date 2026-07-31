@@ -34,6 +34,11 @@ jobs:
       DB_NAME: topiking_test
       DB_TEST_NAME: topiking_test
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      S3_ENDPOINT: http://localhost:9000
+      S3_BUCKET: topiking
+      S3_ACCESS_KEY: minio-test
+      S3_SECRET_KEY: minio-test-secret
+      S3_URL_PUBLIQUE: http://localhost:9000
 
     steps:
       - uses: actions/checkout@v7
@@ -41,6 +46,21 @@ jobs:
         with:
           node-version: 24
           cache: npm
+
+      - name: Démarrer MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=minio-test \
+            -e MINIO_ROOT_PASSWORD=minio-test-secret \
+            minio/minio:latest server /data
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live > /dev/null; then break; fi
+            if [ "$i" -eq 30 ]; then echo "MinIO n'a pas démarré"; docker logs minio; exit 1; fi
+            sleep 2
+          done
+          docker exec minio mc alias set ci http://localhost:9000 minio-test minio-test-secret
+          docker exec minio mc mb --ignore-existing ci/topiking
+          docker exec minio mc anonymous set download ci/topiking
 
       - run: npm ci
       - run: npm run typecheck
@@ -74,6 +94,11 @@ jobs:
       DB_NAME: topiking
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       PORT: 3301
+      S3_ENDPOINT: http://localhost:9000
+      S3_BUCKET: topiking
+      S3_ACCESS_KEY: minio-test
+      S3_SECRET_KEY: minio-test-secret
+      S3_URL_PUBLIQUE: http://localhost:9000
 
     steps:
       - uses: actions/checkout@v7
@@ -81,6 +106,21 @@ jobs:
         with:
           node-version: 24
           cache: npm
+
+      - name: Démarrer MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=minio-test \
+            -e MINIO_ROOT_PASSWORD=minio-test-secret \
+            minio/minio:latest server /data
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live > /dev/null; then break; fi
+            if [ "$i" -eq 30 ]; then echo "MinIO n'a pas démarré"; docker logs minio; exit 1; fi
+            sleep 2
+          done
+          docker exec minio mc alias set ci http://localhost:9000 minio-test minio-test-secret
+          docker exec minio mc mb --ignore-existing ci/topiking
+          docker exec minio mc anonymous set download ci/topiking
 
       - run: npm ci
       - run: npm run build

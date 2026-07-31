@@ -14,6 +14,7 @@ import {
     creerParticipants,
     creerCarte,
     creerReceptionCarte,
+    creerMedia,
 } from "../../helpers/fixtures";
 
 function fabriquerReponse() {
@@ -64,6 +65,25 @@ describe("listerDeck", () => {
         const corps = res.json.mock.calls[0]?.[0] as Array<{ libelle: string }>;
 
         expect(corps).toHaveLength(2);
+    });
+
+    it("expose l'illustration des cartes qui en ont une, null pour les autres", async () => {
+        const { animateur } = await creerContexteMinimal();
+        const media = await creerMedia(animateur.id, { cle: "cartes/brouillage.webp" });
+
+        await creerCarte({ libelle: "Illustrée", id_media: media.id });
+        await creerCarte({ libelle: "Sans image" });
+
+        const res = fabriquerReponse();
+        await listerDeck(fabriquerRequete(), res);
+
+        const corps = res.json.mock.calls[0]?.[0] as Array<{ libelle: string; illustration: string | null }>;
+
+        const illustree = corps.find((carte) => carte.libelle === "Illustrée");
+        const sansImage = corps.find((carte) => carte.libelle === "Sans image");
+
+        expect(String(illustree?.illustration)).toContain("cartes/brouillage.webp");
+        expect(sansImage?.illustration).toBeNull();
     });
 });
 

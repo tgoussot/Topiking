@@ -13,7 +13,11 @@ import { Utilisateur } from "../../../src/entities/Utilisateur";
 import { Organisation } from "../../../src/entities/Organisation";
 import { RequeteAuthentifiee } from "../../../src/middlewares/VerifAuth";
 import { TestDataSource } from "../../helpers/dataSource";
-import { creerOrganisation } from "../../helpers/fixtures";
+import {
+    creerOrganisation,
+    creerMedia,
+    creerUtilisateur as fabriquerUtilisateur,
+} from "../../helpers/fixtures";
 
 // Le contrôleur est appelé directement, avec des req/res simulés : on éprouve
 // l'inscription de bout en bout jusqu'à la base, sans démarrer de serveur HTTP.
@@ -482,8 +486,8 @@ describe("moi", () => {
         );
         const utilisateur = await Utilisateur.findOneBy({ email: "titulaire@exemple.fr" });
 
-        // moi() ne consulte pas la base : il se contente de restituer ce que
-        // verifAuth a déjà chargé dans req.utilisateur.
+        // moi() restitue ce que verifAuth a chargé dans req.utilisateur, et ne
+        // touche la base que pour résoudre l'avatar quand il y en a un.
         const req = fabriquerRequete({}) as RequeteAuthentifiee;
         req.utilisateur = utilisateur!;
 
@@ -495,8 +499,30 @@ describe("moi", () => {
             id: utilisateur!.id,
             email: "titulaire@exemple.fr",
             nom: "Titulaire",
+            avatar: null,
         });
     }, DELAI_ARGON2_MS);
+
+    it("renvoie l'URL de l'avatar quand un média est rattaché", async () => {
+        const organisation = await creerOrganisation();
+        const utilisateur = await fabriquerUtilisateur(organisation.id);
+        const media = await creerMedia(utilisateur.id, { cle: "avatars/portrait.webp" });
+
+        utilisateur.id_media = media.id;
+        await utilisateur.save();
+
+        const req = fabriquerRequete({}) as RequeteAuthentifiee;
+        req.utilisateur = utilisateur;
+
+        const res = fabriquerReponse();
+        await moi(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(200);
+
+        const corps = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
+
+        expect(String(corps.avatar)).toContain("avatars/portrait.webp");
+    });
 
     it("ne divulgue ni le hash ni l'organisation", async () => {
         const organisation = await creerOrganisation();

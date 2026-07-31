@@ -3,65 +3,39 @@ variables:
   - name: base_url
     value: http://localhost:3301
     description: Racine de l'API lancée par « npm run dev ».
-
-  # Code d'invitation issu du seed (src/seed.ts) : « Lycée Victor Hugo ».
-  # Relancer « npm run seed » si la base a été vidée.
   - name: code_invitation_valide
     value: "100001"
     description: Code du seed, organisation « Lycée Victor Hugo » (id 1).
-
-  # Hors de la plage attribuée par le seed : aucune organisation ne le porte.
   - name: code_invitation_inconnu
     value: "999999"
     description: Code volontairement absent de la base, pour le cas 404.
-
-  # Mot de passe commun à tous les comptes du seed (MOT_DE_PASSE_SEED).
   - name: mot_de_passe_seed
-    value: "MotDePasse1!"
+    value: MotDePasse1!
     description: Permet de se connecter avec les comptes du seed, sans inscription.
-
-  # ---- Création de session ----
-  # Une partie compte trois manches sur trois thèmes actifs de la MÊME
-  # organisation, chacun avec au moins trois questions. Le seed en fournit
-  # trois par organisation ; ceux ci-dessous sont ceux de l'IUT.
   - name: code_invitation_themes
     value: "100002"
     description: Organisation « IUT Informatique Lyon », propriétaire des trois thèmes ci-dessous.
-
   - name: id_theme_1
     value: "4"
     description: Algorithmique (IUT Informatique Lyon).
-
   - name: id_theme_2
     value: "5"
     description: Réseaux (IUT Informatique Lyon).
-
   - name: id_theme_3
     value: "8"
     description: Bases de données (IUT Informatique Lyon).
-
-  # Thème du Lycée : sert à vérifier qu'un animateur de l'IUT ne peut pas
-  # créer une session sur le thème d'une autre organisation.
   - name: id_theme_autre_organisation
     value: "1"
     description: Culture générale (Lycée Victor Hugo), hors organisation de l'animateur.
-
-  # ---- Déroulement d'une partie ----
-  # Reprises de src/config/config.ts : les scénarios de jeu bouclent dessus.
   - name: nombre_manches
     value: "3"
     description: NOMBRE_MANCHES — nombre de manches d'une partie.
-
   - name: questions_par_manche
     value: "3"
     description: QUESTIONS_PAR_MANCHE — questions tirées pour chaque manche.
-
   - name: manche_mort_subite
     value: "4"
     description: MANCHE_MORT_SUBITE — numéro de manche réservé au départage.
-
-  # Une question déjà tirée par le seed dans une session terminée : sert de
-  # thème de repli pour trouver une question inédite en mort subite.
   - name: pseudo_minimum
     value: "2"
     description: PSEUDO_LONGUEUR_MINIMUM — en deçà, l'API refuse le pseudo.

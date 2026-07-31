@@ -1,0 +1,32 @@
+info:
+  name: 01 Téléverser sans compte - 401
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{base_url}}/api/medias/cartes"
+  body:
+    type: multipart-form
+    data:
+      - name: image
+        type: file
+        value:
+          - fixtures/illustration.png
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // GARDE-FOU : le pot à cookies de Bruno mémorise le dernier cookie reçu
+        // par domaine et le FUSIONNE dans l'en-tête « Cookie » en lui donnant la
+        // PRIORITÉ sur la valeur déclarée. Ici la requête doit être ANONYME :
+        // sans purge, le jeton d'une exécution précédente la rendrait valide (201).
+        await bru.cookies.jar().deleteCookies(bru.getEnvVar("base_url"));
+
+    - type: tests
+      code: |-
+        test("le stockage est réservé aux comptes connectés", function () {
+          // Sans ce verrou, n'importe qui pourrait remplir le bucket S3.
+          expect(res.getStatus()).to.equal(401);
+        });

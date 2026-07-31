@@ -9,6 +9,7 @@ import { SessionQuestion } from "../../src/entities/SessionQuestion";
 import { Participant } from "../../src/entities/Participant";
 import { ReceptionCarte } from "../../src/entities/ReceptionCarte";
 import { ReponseParticipant } from "../../src/entities/ReponseParticipant";
+import { Media } from "../../src/entities/Media";
 import { QUESTIONS_PAR_MANCHE } from "../../src/config/config";
 import {genererCodeInvitation} from "../../src/services/Jeux/OrganisationService";
 
@@ -112,8 +113,24 @@ export async function creerCarte(surcharges: Partial<Carte> = {}): Promise<Carte
     carte.type = surcharges.type ?? "malus";
     carte.effet = surcharges.effet ?? "retrait_temps_s";
     carte.intensite = surcharges.intensite ?? 5;
+    carte.id_media = surcharges.id_media ?? null;
 
     return await carte.save();
+}
+
+// Insère seulement la ligne en base : aucun fichier n'est envoyé dans MinIO.
+// Les tests qui vérifient le stockage réel passent par le contrôleur.
+export async function creerMedia(idUtilisateur: number, surcharges: Partial<Media> = {}): Promise<Media> {
+    const suffixe = suffixeUnique();
+
+    const media = new Media();
+    media.cle = surcharges.cle ?? `cartes/${suffixe}.webp`;
+    media.mimetype = surcharges.mimetype ?? "image/webp";
+    media.nom_original = surcharges.nom_original ?? `image-${suffixe}.png`;
+    media.taille = surcharges.taille ?? 1024;
+    media.id_utilisateur = idUtilisateur;
+
+    return await media.save();
 }
 
 export async function creerSession(idAnimateur: number, surcharges: Partial<Session> = {}): Promise<Session> {

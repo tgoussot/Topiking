@@ -7,6 +7,8 @@ import {SEUIL_CIBLAGE_MULTIPLE} from "../config/config";
 import {cartesEnMain} from "../services/Jeux/DistributionCarteService";
 import {ciblesEligibles, ciblesImposees, jouerCarte} from "../services/Jeux/CiblageService";
 import {classementGeneral} from "../services/Jeux/ClassementService";
+import {urlPublique} from "../services/StockageService";
+import {Media} from "../entities/Media";
  import {versSession} from "../websocket/Registre";
 
 function messageDe(erreur: unknown): string {
@@ -24,6 +26,7 @@ function presenterCarte(carte: Carte) {
         type: carte.type,
         effet: carte.effet,
         intensite: carte.intensite,
+        illustration: carte.illustration ? urlPublique(carte.illustration.cle) : null,
     };
 }
 
@@ -51,9 +54,40 @@ function presenterCarteJouee(reception: ReceptionCarte) {
 }
 
 export async function listerDeck(req: express.Request, res: express.Response) {
-    const cartes = await Carte.find({order: {id: "ASC"}});
+    const cartes = await Carte.find({order: {id: "ASC"}, relations: {illustration: true}});
 
     return res.status(200).json(cartes.map(presenterCarte));
+}
+
+export async function definirIllustration(req: express.Request, res: express.Response) {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+        return res.status(400).json({erreur: "Identifiant de carte invalide"});
+    }
+
+    const carte = await Carte.findOneBy({id: id});
+
+    if (!carte) {
+        return res.status(404).json({erreur: "Carte introuvable"});
+    }
+
+    const {id_media} = req.body;
+
+    if (id_media !== null) {
+        const media = await Media.findOneBy({id: id_media});
+
+        if (!media) {
+            return res.status(404).json({erreur: "Média introuvable"});
+        }
+    }
+
+    carte.id_media = id_media;
+    await carte.save();
+
+    const rechargee = await Carte.findOne({where: {id: id}, relations: {illustration: true}});
+
+    return res.status(200).json(presenterCarte(rechargee!));
 }
 
 export async function listerCartesEnMain(req: express.Request, res: express.Response) {
