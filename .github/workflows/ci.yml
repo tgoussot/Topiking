@@ -92,8 +92,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Ajouter le tag latest à l'image déjà validée en recette
+        env:
+          DEPOT: ${{ github.repository }}
         run: |
-          IMAGE=ghcr.io/${{ github.repository }}
+          IMAGE="ghcr.io/$(echo "$DEPOT" | tr '[:upper:]' '[:lower:]')"
           docker buildx imagetools create --tag "${IMAGE}:latest" "${IMAGE}:dev"
           docker buildx imagetools inspect "${IMAGE}:latest" --format '{{json .Manifest.Digest}}'
 
