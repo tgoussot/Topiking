@@ -5,4 +5,5 @@ node_modules/
 # Sorties de compilation et de tests
 dist/
 coverage/
+bruno/resultats.xml
 .DS_Store
