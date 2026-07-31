@@ -47,3 +47,29 @@ jobs:
           labels: ${{ steps.metadonnees.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  recette:
+    name: Déploiement en recette
+    runs-on: [self-hosted, topiking-rec]
+    needs: image
+    if: github.ref_name == 'dev'
+
+    steps:
+      - name: Tirer la nouvelle image et relancer la pile
+        working-directory: /opt/topiking
+        run: |
+          docker compose -f compose.prod.yml pull
+          docker compose -f compose.prod.yml up -d
+
+      - name: Attendre que l'API réponde
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3301/healthcheck > /dev/null; then
+              echo "Recette disponible"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "L'API n'a pas répondu après le déploiement"
+          docker compose -f /opt/topiking/compose.prod.yml logs api --tail 30
+          exit 1
