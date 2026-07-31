@@ -2,6 +2,7 @@ name: Tests
 
 on:
   push:
+    branches: [main, dev]
   pull_request:
 
 permissions:
@@ -107,7 +108,7 @@ jobs:
 
       - name: Jouer la collection
         working-directory: bruno
-        run: npx --yes @usebruno/cli@4.0.0 run . -r --env local
+        run: npx --yes @usebruno/cli@4.0.0 run . -r --env local --reporter-junit resultats.xml
 
       - if: always()
         uses: actions/upload-artifact@v7
