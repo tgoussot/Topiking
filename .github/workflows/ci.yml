@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   tests:
+    if: github.ref_name == 'dev'
     uses: ./.github/workflows/tests.yml
     secrets: inherit
 
@@ -16,6 +17,7 @@ jobs:
     name: Image Docker
     runs-on: ubuntu-latest
     needs: tests
+    if: github.ref_name == 'dev'
 
     permissions:
       contents: read
@@ -35,8 +37,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=dev,enable=${{ github.ref_name == 'dev' }}
+            type=raw,value=dev
             type=sha,prefix=sha-
 
       - uses: docker/build-push-action@v7
@@ -74,17 +75,39 @@ jobs:
           docker compose -f /opt/topiking/compose.prod.yml logs api --tail 30
           exit 1
 
+  promotion:
+    name: Promotion de l'image en latest
+    runs-on: ubuntu-latest
+    if: github.ref_name == 'main'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ajouter le tag latest à l'image déjà validée en recette
+        run: |
+          IMAGE=ghcr.io/${{ github.repository }}
+          docker buildx imagetools create --tag "${IMAGE}:latest" "${IMAGE}:dev"
+          docker buildx imagetools inspect "${IMAGE}:latest" --format '{{json .Manifest.Digest}}'
+
   production:
     name: Déploiement en production
     runs-on: [self-hosted, topiking-prod]
-    needs: image
+    needs: promotion
     if: github.ref_name == 'main'
     environment:
       name: production
       url: https://topiking.labo-narra.fr
 
     steps:
-      - name: Tirer la nouvelle image et relancer la pile
+      - name: Tirer l'image promue et relancer la pile
         working-directory: /opt/topiking
         run: |
           docker compose -f compose.prod.yml pull
