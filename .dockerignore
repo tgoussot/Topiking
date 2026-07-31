@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+.git
+.idea
+.env
+_docs
+bruno
+.DS_Store
