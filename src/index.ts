@@ -21,8 +21,13 @@ async function main() {
     app.use(json());
     app.use(cookieParser());
 
-    app.get("/healthcheck", (req, res) => {
-        res.send("API fonctionnel");
+    app.get("/healthcheck", async (req, res) => {
+        try {
+            await AppDataSource.query("SELECT 1");
+            res.json({ statut: "ok", base: "joignable" });
+        } catch {
+            res.status(503).json({ statut: "degrade", base: "injoignable" });
+        }
     });
     app.use("/api/utilisateurs", UtilisateursRouteur);
     app.use("/api/sessions", SessionsRouteur);
