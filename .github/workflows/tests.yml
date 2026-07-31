@@ -1,0 +1,122 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  jest:
+    name: Jest et typage
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: supersecret
+          POSTGRES_DB: topiking_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: supersecret
+      DB_NAME: topiking_test
+      DB_TEST_NAME: topiking_test
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run test:unit
+
+      - run: npm run test:integration
+
+  bruno:
+    name: Bruno bout en bout
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: supersecret
+          POSTGRES_DB: topiking
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: supersecret
+      DB_NAME: topiking
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      PORT: 3301
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Alimenter la base
+        run: npx ts-node src/seed.ts
+
+      - name: Démarrer l'API
+        run: |
+          node dist/index.js > api.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3301/healthcheck > /dev/null; then
+              echo "API disponible"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "L'API n'a pas répondu dans le délai imparti"
+              cat api.log
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Jouer la collection
+        working-directory: bruno
+        run: npx --yes @usebruno/cli@4.0.0 run . -r --env local --reporter-junit resultats.xml
+
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rapport-bruno
+          path: bruno/resultats.xml
+          if-no-files-found: ignore
